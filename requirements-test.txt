@@ -1,0 +1,9 @@
+pytest
+pytest-cov
+pep8
+pep8-naming
+flake8
+flake8-import-order
+flake8-html
+radon
+bandit

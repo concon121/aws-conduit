@@ -1,0 +1,13 @@
+portfolios:
+  - name: portfolio-name
+    products:
+      - name: product-one
+        deployTo:
+          - dev
+          - test
+      - name: product-two
+        deployTo:
+          - dev
+          - test
+        dependsOn:
+          - product-one
