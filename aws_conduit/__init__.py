@@ -64,12 +64,14 @@ class Conduit(cmdln.Cmdln):
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_portfolio(opts.name, opts.description)
-        if action == 'update':
+        elif action == 'update':
             conduit.update_portfolio(opts.id, opts.name, opts.description)
     #    if action == 'delete':
     #        conduit.delete_portfolio(opts.name)
-        if action == 'list':
+        elif action == 'list':
             conduit.list_portfolios()
+        else:
+            print("{}: not a valid action for portfolio".format(action))
 
     @cmdln.option("-n", "--name",
                   help="The name of the portfolio.")
@@ -104,12 +106,14 @@ class Conduit(cmdln.Cmdln):
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
-        if action == 'update':
+        elif action == 'update':
             conduit.update_product(opts.id, opts.name, opts.description, opts.cfntype)
-        # if action == 'delete':
-        #    conduit.delete_product(opts.name)
-        if action == 'list':
+        elif action == 'delete':
+            conduit.delete_product(opts.id)
+        elif action == 'list':
             conduit.list_products()
+        else:
+            print("{}: not a valid action for product".format(action))
 
     def do_build(self, subcmd, opts, *action):
         """

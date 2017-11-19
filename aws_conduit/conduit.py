@@ -131,6 +131,7 @@ def new_product(name, description, cfntype, portfolio_name, tags=None):
         tags = []
     bucket = configure()
     alias = get_alias()
+    print("Creating a new product...")
     product = factory.product(name, alias, bucket,
                               cfntype, portfolio_name,
                               product_description=description)
@@ -139,7 +140,9 @@ def new_product(name, description, cfntype, portfolio_name, tags=None):
     config = bucket.get_config(CONFIG_PREFIX)
     support = dict() if 'support' not in config else config['support']
     product.create(support, tags)
+    print("Product created...")
     product.add_to_portfolio(portfolio_id)
+    print("Product assigned to portfolio: {}".format(portfolio_id))
     for portfolio in config['portfolios']:
         if portfolio.name == portfolio_name:
             portfolio.products.append(product)
@@ -181,6 +184,29 @@ def update_product(product_id, name, description, cfntype, tags=None):
                 print("Product updated successfully...")
                 break
             break
+
+    bucket.put_config(config, CONFIG_PREFIX)
+
+
+def delete_product(product_id):
+    """
+    Delete a product.
+
+    Args:
+        id (str): The id of the product to delete.
+    """
+    if product_id is None:
+        raise ValueError("A product ID must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Deleting product with id: {}".format(product_id))
+    for portfolio in config['portfolios']:
+        for product in portfolio.products:
+            if product.product_id == product_id:
+                product.delete()
+                portfolio.products.remove(product)
+                print("Product deleted successfully...")
+                break
 
     bucket.put_config(config, CONFIG_PREFIX)
 
