@@ -131,13 +131,13 @@ class Conduit(cmdln.Cmdln):
 
         ${cmd_option_list}
         """
-        if action == 'major':
+        if action and action[0] == 'major':
             print("Releasing new major version...")
             conduit.build('major')
-        if action == 'minor':
+        elif action and action[0] == 'minor':
             print("Releasing new minor version...")
             conduit.build('minor')
-        if action == 'patch':
+        elif action and action[0] == 'patch':
             print("Release new patch version...")
             conduit.build('patch')
         else:

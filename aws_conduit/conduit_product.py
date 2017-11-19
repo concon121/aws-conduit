@@ -199,7 +199,6 @@ class ConduitProduct(yaml.YAMLObject):
             if ('build' in item['Name'] and
                     semver.compare(item['Name'], version) == -1):
                 self.delete_version(item['Name'], item['Id'])
-                break
         print("Current product version is: {}".format(version))
         return version
 
