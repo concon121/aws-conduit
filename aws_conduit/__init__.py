@@ -5,22 +5,6 @@ import cmdln
 from aws_conduit import conduit
 
 
-class Portfolio(cmdln.Cmdln):
-
-    name = "portfolio"
-
-    @cmdln.option("-n", "--name",
-                  help="Portfolio name.")
-    @cmdln.option("-d", "--description",
-                  help="Portfolio description.")
-    def do_create(self, subcmd, opts):
-        """
-        ${cmd_name}: Create a new portfolio.
-
-        ${cmd_usage}
-        """
-
-
 class Conduit(cmdln.Cmdln):
     name = "conduit"
 
@@ -62,16 +46,28 @@ class Conduit(cmdln.Cmdln):
         ${cmd_usage}
         Actions:
             create
+            update
+            delete
+            list
 
         ${cmd_option_list}
         """
         actions = [
-            'create'
+            'create',
+            'update',
+            'delete',
+            'list'
         ]
         if action not in actions:
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_portfolio(opts.name, opts.description)
+    #    if action == 'update':
+    #        conduit.update_portfolio(opts.name, opts.description)
+    #    if action == 'delete':
+    #        conduit.delete_portfolio(opts.name)
+        if action == 'list':
+            conduit.list_portfolios()
 
     @cmdln.option("-n", "--name",
                   help="The name of the portfolio.")
@@ -88,22 +84,39 @@ class Conduit(cmdln.Cmdln):
         ${cmd_usage}
         Actions:
             create
+            update
+            delete
+            list
 
         ${cmd_option_list}
         """
         actions = [
-            'create'
+            'create',
+            'update',
+            'delete',
+            'list'
         ]
         if action not in actions:
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
+        # if action == 'update':
+        #    conduit.update_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
+        # if action == 'delete':
+        #    conduit.delete_product(opts.name)
+        if action == 'list':
+            conduit.list_products()
 
-    def do_build(self, subcmd, opts):
+    def do_build(self, subcmd, opts, *action):
         """
         ${cmd_name}: Release a build from a conduitspec.yaml
 
         ${cmd_usage}
+        Actions:
+            major
+            minor
+            patch
+
         ${cmd_option_list}
         """
         conduit.build()

@@ -10,6 +10,7 @@ CONFIG_PREFIX = 'conduit.yaml'
 BUCKET_PREFIX = 'conduit-config-'
 IAM = boto3.client('iam')
 STS = boto3.client('sts')
+ROW_FORMAT = "{:<30}" * 3
 
 
 def configure():
@@ -62,6 +63,57 @@ def new_portfolio(name, description, tags=None):
         raise ValueError('An account alias needs to be set!')
 
 
+def update_portfolio(name, description, tags=None):
+    """
+    Update a portfolio.
+
+    Args:
+        name (str): The name of the portfolio to create.
+        description (str): A description of the portfolio to create.
+        tags (list): An optional list of tags to apply to all products in the portfolio.
+
+    Return:-
+        portfolio: An object handle on the portfolio.
+    """
+    if name is None or description is None:
+        raise ValueError("name and description must have values")
+    if tags is None:
+        tags = []
+    bucket = configure()
+    alias = get_alias()
+    if alias:
+        portfolio = factory.portfolio(name, alias, portfolio_description=description)
+        portfolio.create(tags)
+        config = bucket.get_config(CONFIG_PREFIX)
+        if 'portfolios' not in config:
+            config['portfolios'] = []
+        config['portfolios'].append(portfolio)
+        bucket.put_config(config, CONFIG_PREFIX)
+        return portfolio
+    else:
+        raise ValueError('An account alias needs to be set!')
+
+
+def list_portfolios(token=None):
+    print(ROW_FORMAT.format("Name", "Id", "Description"))
+    print("----------" * 9)
+    _list_all_portfolios()
+
+
+def _list_all_portfolios(token=None):
+    service_catalog = boto3.client('servicecatalog')
+    if token is not None:
+        response = service_catalog.list_portfolios(
+            PageToken=token
+        )
+    else:
+        response = service_catalog.list_portfolios()
+    for portfolio in response['PortfolioDetails']:
+        print(ROW_FORMAT.format(portfolio['DisplayName'], portfolio['Id'], portfolio['Description']))
+    if 'NextPageToken' in response:
+        _list_all_portfolios(token=response['NextPageToken'])
+
+
 def new_product(name, description, cfntype, portfolio_name, tags=None):
     """
     Create a new product.
@@ -95,6 +147,27 @@ def new_product(name, description, cfntype, portfolio_name, tags=None):
             portfolio.products.append(product)
     bucket.put_config(config, CONFIG_PREFIX)
     return product
+
+
+def list_products():
+    print(ROW_FORMAT.format("Name", "Id", "Description"))
+    print("----------" * 9)
+    _list_all_products()
+
+
+def _list_all_products(token=None):
+    service_catalog = boto3.client('servicecatalog')
+    if token is not None:
+        response = service_catalog.search_products_as_admin(
+            PageToken=token
+        )
+    else:
+        response = service_catalog.search_products_as_admin()
+    for product in response['ProductViewDetails']:
+        summary = product['ProductViewSummary']
+        print(ROW_FORMAT.format(summary['Name'], summary['ProductId'], summary['ShortDescription']))
+    if 'NextPageToken' in response:
+        _list_all_portfolios(token=response['NextPageToken'])
 
 
 def get_alias():

@@ -113,13 +113,38 @@ Once the S3 bucket is in place, the default support configuration for your produ
 > conduit support --email "noone@home.com" --url "http://madeup.com" --description "This is the groovy support info"
 ```
 
-### Creating a new Portfolio
+### Conduit by Example
+
+#### Creating a new Portfolio
 
 ```
 > conduit portfolio create --n "My Portfolio" --d "This is my portfolio description"
 ```
 
-### Creating a new Product
+#### Creating a new Product
 ```
 > conduit product create -n "My Product" -d "this is my product info" -c "yaml" -p "My Portfolio"
+```
+
+#### CI Build Increment
+```
+> conduit build
+```
+
+#### List all Portfolios
+```
+> conduit portfolio list
+Name                          Id                            Description
+------------------------------------------------------------------------------------------
+test-portfolio                port-c3ghpcitagt2w            test portfolio description
+another-portfolio             port-dfh2m6vzbwweu            groovy portfolio
+```
+
+#### List all products
+```
+> conduit product list
+Name                          Id                            Description
+------------------------------------------------------------------------------------------
+groovy-test-product           prod-wkc4otel6chxu            Groovy products are groovy
+another-test-product          prod-craeqnatjljsc            Another test product
 ```
