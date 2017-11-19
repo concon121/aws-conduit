@@ -79,6 +79,8 @@ class Conduit(cmdln.Cmdln):
                   help="yaml or json?")
     @cmdln.option("-p", "--portfolio",
                   help="The name of the portfolio.")
+    @cmdln.option("-i", "--id",
+                  help="The product id for use on an update.")
     def do_product(self, subcmd, opts, action):
         """
         ${cmd_name}: Product management for the masses!
@@ -102,8 +104,8 @@ class Conduit(cmdln.Cmdln):
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
-        # if action == 'update':
-        #    conduit.update_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
+        if action == 'update':
+            conduit.update_product(opts.id, opts.name, opts.description, opts.cfntype)
         # if action == 'delete':
         #    conduit.delete_product(opts.name)
         if action == 'list':

@@ -147,6 +147,44 @@ def new_product(name, description, cfntype, portfolio_name, tags=None):
     return product
 
 
+def update_product(product_id, name, description, cfntype, tags=None):
+    """
+    Update a portfolio.
+
+    Args:
+        name (str): The name of the portfolio to create.
+        description (str): A description of the portfolio to create.
+
+    Return:-
+        portfolio: An object handle on the portfolio.
+    """
+    if product_id is None:
+        raise ValueError("A product ID must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Updating product with id: {}".format(product_id))
+    for portfolio in config['portfolios']:
+        for product in portfolio.products:
+            if product.product_id == product_id:
+                if name is not None:
+                    product.name = name
+                if description is not None:
+                    product.description = description
+                if cfntype is not None:
+                    product.cfntype = cfntype
+                if tags is not None:
+                    product.tags = tags
+                support = dict()
+                if 'support' in config:
+                    support = config['support']
+                product.update(support)
+                print("Product updated successfully...")
+                break
+            break
+
+    bucket.put_config(config, CONFIG_PREFIX)
+
+
 def list_products():
     print(ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)

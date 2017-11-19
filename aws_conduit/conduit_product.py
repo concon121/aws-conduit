@@ -114,6 +114,30 @@ class ConduitProduct(yaml.YAMLObject):
             Id=self.product_id
         )
 
+    def update(self, support):
+        """
+        Updates this Product instance.
+        """
+        description = 'NotSet'
+        email = 'noone@home.com'
+        url = 'http://notset.com'
+        if 'description' in support:
+            description = support['description']
+        if 'email' in support:
+            email = support['email']
+        if 'url' in support:
+            url = support['url']
+        self.service_catalog.update_product(
+            Id=self.product_id,
+            Name=self.name,
+            Owner=self.owner,
+            Description=self.description,
+            Distributor=self.owner,
+            SupportDescription=description,
+            SupportEmail=email,
+            SupportUrl=url,
+        )
+
     def disassociate(self, portfolio):
         self.service_catalog.disassociate_product_from_portfolio(
             ProductId=self.product_id,
