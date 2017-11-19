@@ -20,7 +20,6 @@ class ConduitS3(yaml.YAMLObject):
     def exists(self):
         """Test if an S3 bucket exists."""
         all_buckets = self.s3_client.list_buckets()
-        print([bucket['Name'] for bucket in all_buckets['Buckets']])
         return bool(self.name in [bucket['Name'] for bucket in all_buckets['Buckets']])
 
     def create(self):
@@ -31,13 +30,14 @@ class ConduitS3(yaml.YAMLObject):
             name(str): The name of the S3 bucket to create.
             region(str): The region to create the S3 bucket in.
         """
-        self.s3_resource.create_bucket(
+        bucket = self.s3_resource.Bucket(self.name)
+        bucket.create(
             ACL='private',
-            Bucket=self.name,
             CreateBucketConfiguration={
                 'LocationConstraint': self.region
             }
         )
+        bucket.Versioning().enable()
 
     def delete(self):
         """Delete an S3 bucket and all of its contents."""
@@ -79,9 +79,16 @@ class ConduitS3(yaml.YAMLObject):
             content(dict): An object representnig some yaml configuration.
             prefix(str): The prefix to save the configuration to.
         """
-        file_name = prefix.split('/')[-1]
-        open(file_name, "w+").write(yaml.dump(content, default_flow_style=False))
-        self.s3_client.upload_file(file_name, self.name, prefix)
+        obj = self.s3_resource.Object(self.name, prefix)
+        if isinstance(content, dict):
+            file_name = prefix.split('/')[-1]
+            print("Uploading {} to {}...".format(file_name, self.name))
+            open(file_name, "w+").write(yaml.dump(content, default_flow_style=False))
+            obj.upload_file(file_name)
+        else:
+            print("Uploading {} to {}...".format(content, self.name))
+            obj.upload_file(content)
+        return obj.version_id
 
     def get_url(self):
         """Get the https url for this S3 bucket."""

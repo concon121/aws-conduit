@@ -2,6 +2,7 @@
 from datetime import datetime
 
 import boto3
+import yaml
 
 from aws_conduit import conduit_factory as factory
 
@@ -129,4 +130,29 @@ def set_default_support_config(description=None, email=None, url=None):
         support['url'] = url
     config['support'] = support
     print("Writing new support configuration...")
+    bucket.put_config(config, CONFIG_PREFIX)
+
+
+def build():
+    print("Rekeasing a new build version...")
+    bucket = configure()
+    spec = yaml.safe_load(open('conduitspec.yaml').read())
+    config = bucket.get_config(CONFIG_PREFIX)
+    portfolio = None
+    product = None
+    for port in config['portfolios']:
+        if port.name == spec['portfolio']:
+            portfolio = port
+            for prod in portfolio.products:
+                if prod.name == spec['product']:
+                    product = prod
+                    break
+            break
+    if not portfolio.exists():
+        raise ValueError("The specified portfolio does not exist: {}".format(config['portfolio']))
+    if not product.exists():
+        raise ValueError("The specified product does not exist: {}".format(config['product']))
+
+    product.release_new_build(spec['cfn']['template'], product.version)
+
     bucket.put_config(config, CONFIG_PREFIX)

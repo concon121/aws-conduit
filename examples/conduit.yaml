@@ -17,4 +17,5 @@ portfolios:
     product_id: prod-wkcc4oel6thxu
     template_location: https://s3.eu-west-2.amazonaws.com/conduit-config-538162597997/test-portfolio/groovy-test-product.yaml
     template_prefix: test-portfolio/groovy-test-product.yaml
+    version: 0.0.0+build.5
   provider: cbscl

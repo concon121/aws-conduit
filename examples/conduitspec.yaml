@@ -1,0 +1,5 @@
+portfolio: "test-portfolio"
+product: "groovy-test-product"
+cfn:
+  template: "TestProduct.yaml"
+  type: "yaml"

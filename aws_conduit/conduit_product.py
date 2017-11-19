@@ -1,5 +1,6 @@
 import attr
 import boto3
+import semver
 import yaml
 
 
@@ -16,6 +17,7 @@ class ConduitProduct(yaml.YAMLObject):
     template_location = attr.ib(default=None)
     template_prefix = attr.ib(default=None)
     product_id = attr.ib(default=None)
+    version = attr.ib(default="0.0.0")
     service_catalog = boto3.client('servicecatalog')
 
     def _add_initial_template(self):
@@ -36,21 +38,30 @@ class ConduitProduct(yaml.YAMLObject):
         Create a new product.
         """
         if not self.template_location:
-            self.template_location = "{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, self.cfn_type)
-            self.template_prefix = "{}/{}.{}".format(self.portfolio, self.name, self.cfn_type)
+            self.template_location = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, self.version, self.name, self.cfn_type)
+            self.template_prefix = "{}/{}/{}/{}.{}".format(self.portfolio, self.name, self.version, self.name, self.cfn_type)
         self._add_initial_template()
+        description = 'NotSet'
+        email = 'noone@home.com'
+        url = 'http://notset.com'
+        if 'description' in support:
+            description = support['description']
+        if 'email' in support:
+            email = support['email']
+        if 'url' in support:
+            url = support['url']
         create_response = self.service_catalog.create_product(
             Name=self.name,
             Owner=self.owner,
             Description=self.description,
             Distributor=self.owner,
-            SupportDescription=support['description'],
-            SupportEmail=support['email'],
-            SupportUrl=support['url'],
+            SupportDescription=description,
+            SupportEmail=email,
+            SupportUrl=url,
             ProductType='CLOUD_FORMATION_TEMPLATE',
             Tags=tags,
             ProvisioningArtifactParameters={
-                'Name': '0.0.0',
+                'Name': self.version,
                 'Description': 'Initial product creation.',
                 'Info': {
                     'LoadTemplateFromURL': self.template_location
@@ -81,7 +92,6 @@ class ConduitProduct(yaml.YAMLObject):
                 ]
             }
         )
-        print(response)
         if 'ProductViewDetails' in response:
             for item in response['ProductViewDetails']:
                 if item['ProductViewSummary']:
@@ -93,7 +103,6 @@ class ConduitProduct(yaml.YAMLObject):
 
     def exists(self):
         summary = self.get_summary()
-        print(summary)
         return bool(summary is not None)
 
     def delete(self):
@@ -126,3 +135,37 @@ class ConduitProduct(yaml.YAMLObject):
         if 'NextPageToken' in response:
             portfolios = portfolios + self.get_all_portfolios(token=response['NextPageToken'])
         return portfolios
+
+    def release_new_build(self, local_template, current_version):
+        product_version = semver.bump_build(current_version)
+        self.bucket.put_config(local_template, "{}/{}/{}/{}.{}".format(self.portfolio, self.name, product_version, self.name, self.cfn_type))
+        template_url = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, self.name, self.cfn_type)
+        print("Creating new version to template: {}".format(template_url))
+        self.service_catalog.create_provisioning_artifact(
+            ProductId=self.product_id,
+            Parameters={
+                'Name': product_version,
+                'Description': 'Incremental build; Not production ready!',
+                'Info': {
+                    'LoadTemplateFromURL': template_url
+                },
+                'Type': 'CLOUD_FORMATION_TEMPLATE'
+            },
+            IdempotencyToken='string'
+        )
+        self.version = product_version
+        print("Released new product version: {}".format(product_version))
+
+    def get_last_version(self):
+        response = self.service_catalog.list_provisioning_artifacts(
+            ProductId=self.product_id
+        )
+        version = "0.0.0"
+        for item in response['ProvisioningArtifactDetails']:
+            print("Testing version: {}, {}".format(item['Name'], version))
+            print(semver.compare(item['Name'], version))
+            if semver.compare(item['Name'], version) == -1:
+                version = item['Name']
+                break
+        print("Current product version is: {}".format(version))
+        return version

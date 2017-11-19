@@ -99,6 +99,15 @@ class Conduit(cmdln.Cmdln):
         if action == 'create':
             conduit.new_product(opts.name, opts.description, opts.cfntype, opts.portfolio)
 
+    def do_build(self, subcmd, opts):
+        """
+        ${cmd_name}: Release a build from a conduitspec.yaml
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        conduit.build()
+
 
 def main():
     aws_conduit = Conduit()
