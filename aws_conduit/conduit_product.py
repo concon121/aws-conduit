@@ -208,6 +208,11 @@ class ConduitProduct(yaml.YAMLObject):
             ProductId=self.product_id,
             ProvisioningArtifactId=version_id
         )
+        key = "{}/{}/{}/{}.{}".format(self.portfolio, self.name, version_name, self.name, self.cfn_type)
+        bucket = self.bucket.s3_resource.Bucket(self.bucket.name)
+        for obj in bucket.objects.all():
+            if obj.key == key:
+                obj.delete()
 
     def get_all_versions(self):
         response = self.service_catalog.list_provisioning_artifacts(
