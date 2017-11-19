@@ -12,6 +12,7 @@ setup(
     author='Connor Bray',
     author_email='connor.bray@icloud.com',
     url="https://github.com/concon121/aws-conduit",
+    download_url="https://github.com/concon121/aws-conduit/archive/0.0.1.tar.gz",
     install_requires=required,
     keywords=['aws', 'servicecatalog'],
     entry_points={
