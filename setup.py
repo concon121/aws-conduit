@@ -11,7 +11,9 @@ setup(
     description='Product management for AWS Service Catalog.',
     author='Connor Bray',
     author_email='connor.bray@icloud.com',
+    url="https://github.com/concon121/aws-conduit",
     install_requires=required,
+    keywords=['aws', 'servicecatalog'],
     entry_points={
         'console_scripts': [
             'conduit=aws_conduit.__init__:main'
