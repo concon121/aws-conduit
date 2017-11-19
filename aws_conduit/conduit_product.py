@@ -160,8 +160,20 @@ class ConduitProduct(yaml.YAMLObject):
             portfolios = portfolios + self.get_all_portfolios(token=response['NextPageToken'])
         return portfolios
 
-    def release_new_build(self, local_template, current_version):
-        product_version = semver.bump_build(current_version)
+    def release(self, release_type, local_template, current_version):
+        product_version = current_version
+        if release_type == 'build':
+            product_version = semver.bump_build(current_version)
+        if release_type == 'major':
+            product_version = semver.bump_major(current_version)
+        if release_type == 'minor':
+            product_version = semver.bump_minor(current_version)
+        if release_type == 'patch':
+            product_version = semver.bump_patch(current_version)
+
+        self.release_new_build(local_template, product_version)
+
+    def release_new_build(self, local_template, product_version):
         self.bucket.put_config(local_template, "{}/{}/{}/{}.{}".format(self.portfolio, self.name, product_version, self.name, self.cfn_type))
         template_url = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, self.name, self.cfn_type)
         print("Creating new version to template: {}".format(template_url))
@@ -180,14 +192,34 @@ class ConduitProduct(yaml.YAMLObject):
         self.version = product_version
         print("Released new product version: {}".format(product_version))
 
-    def get_last_version(self):
+    def tidy_versions(self):
+        versions = self.get_all_versions()
+        version = self.version
+        for item in versions:
+            if ('build' in item['Name'] and
+                    semver.compare(item['Name'], version) == -1):
+                self.delete_version(item['Name'], item['Id'])
+                break
+        print("Current product version is: {}".format(version))
+        return version
+
+    def delete_version(self, version_name, version_id):
+        print("Deleting version: {}".format(version_name))
+        self.service_catalog.delete_provisioning_artifact(
+            ProductId=self.product_id,
+            ProvisioningArtifactId=version_id
+        )
+
+    def get_all_versions(self):
         response = self.service_catalog.list_provisioning_artifacts(
             ProductId=self.product_id
         )
-        version = "0.0.0"
-        for item in response['ProvisioningArtifactDetails']:
-            print("Testing version: {}, {}".format(item['Name'], version))
-            print(semver.compare(item['Name'], version))
+        return response['ProvisioningArtifactDetails']
+
+    def get_last_version(self):
+        versions = self.get_all_versions()
+        version = self.version
+        for item in versions:
             if semver.compare(item['Name'], version) == -1:
                 version = item['Name']
                 break

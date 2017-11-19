@@ -93,6 +93,7 @@ class Conduit(cmdln.Cmdln):
             update
             delete
             list
+            associate
 
         ${cmd_option_list}
         """
@@ -100,7 +101,8 @@ class Conduit(cmdln.Cmdln):
             'create',
             'update',
             'delete',
-            'list'
+            'list',
+            'associate'
         ]
         if action not in actions:
             raise ValueError("Not a valid action: {}".format(action))
@@ -112,6 +114,8 @@ class Conduit(cmdln.Cmdln):
             conduit.delete_product(opts.id)
         elif action == 'list':
             conduit.list_products()
+        elif action == 'associate':
+            conduit.associate_product_with_portfolio(opts.id, opts.portfolio)
         else:
             print("{}: not a valid action for product".format(action))
 
@@ -127,7 +131,18 @@ class Conduit(cmdln.Cmdln):
 
         ${cmd_option_list}
         """
-        conduit.build()
+        if action == 'major':
+            print("Releasing new major version...")
+            conduit.build('major')
+        if action == 'minor':
+            print("Releasing new minor version...")
+            conduit.build('minor')
+        if action == 'patch':
+            print("Release new patch version...")
+            conduit.build('patch')
+        else:
+            print("Release new build version...")
+            conduit.build('build')
 
 
 def main():

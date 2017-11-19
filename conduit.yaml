@@ -2,7 +2,7 @@ created: 2017-11-19 00:27:09.629576
 portfolios:
 - !Portfolio
   description: updated-description
-  name: updated-name
+  name: test-portfolio
   portfolio_id: port-cgt2hpac3gitw
   products:
   - !Product
@@ -30,5 +30,18 @@ portfolios:
     product_id: prod-7razvoju75lge
     template_location: https://s3.eu-west-2.amazonaws.com/conduit-config-538162597997/updated-name/new-prod/0.0.0/new-prod.yaml
     template_prefix: updated-name/new-prod/0.0.0/new-prod.yaml
+    version: 0.0.0
+  - !Product
+    bucket: !Bucket
+      name: conduit-config-538162597997
+      region: eu-west-2
+    cfn_type: yaml
+    description: Groovy products are groovy
+    name: groovy-test-product
+    owner: cbscl
+    portfolio: test-portfolio
+    product_id: prod-ccraeqtajljns
+    template_location: null
+    template_prefix: null
     version: 0.0.0
   provider: cbscl

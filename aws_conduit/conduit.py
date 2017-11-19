@@ -235,6 +235,34 @@ def delete_product(product_id):
     bucket.put_config(config, CONFIG_PREFIX)
 
 
+def associate_product_with_portfolio(product_id, portfolio_id):
+    if portfolio_id is None:
+        raise ValueError("A portfolio id must be provided")
+    if product_id is None:
+        raise ValueError("A product id must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Associating product with portfolio...")
+
+    client = boto3.client('servicecatalog')
+    client.associate_product_with_portfolio(
+        ProductId=product_id,
+        PortfolioId=portfolio_id
+    )
+
+    print("Association successful...")
+    print("Finding product by id...")
+    product = factory.product_by_id(product_id, bucket)
+
+    print("Reflecting changes in Conduit config...")
+    for portfolio in config['portfolios']:
+        if portfolio.portfolio_id == portfolio_id:
+            portfolio.products.append(product)
+            product.portfolio = portfolio.name
+
+    bucket.put_config(config, CONFIG_PREFIX)
+
+
 def list_products():
     print(ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)
@@ -292,11 +320,7 @@ def set_default_support_config(description=None, email=None, url=None):
     bucket.put_config(config, CONFIG_PREFIX)
 
 
-def build():
-    print("Rekeasing a new build version...")
-    bucket = configure()
-    spec = yaml.safe_load(open('conduitspec.yaml').read())
-    config = bucket.get_config(CONFIG_PREFIX)
+def _find_build_product(spec, config):
     portfolio = None
     product = None
     for port in config['portfolios']:
@@ -306,12 +330,21 @@ def build():
                 if prod.name == spec['product']:
                     product = prod
                     break
-            break
-    if not portfolio.exists():
-        raise ValueError("The specified portfolio does not exist: {}".format(config['portfolio']))
-    if not product.exists():
-        raise ValueError("The specified product does not exist: {}".format(config['product']))
+    if portfolio is None or not portfolio.exists():
+        raise ValueError("The specified portfolio does not exist: {}".format(spec['portfolio']))
+    if product is None or not product.exists():
+        raise ValueError("The product {} does not exist in portfolio {}".format(spec['product'], spec['portfolio']))
+    return product
 
-    product.release_new_build(spec['cfn']['template'], product.version)
 
+def build(action):
+    print("Releasing a new build version...")
+    bucket = configure()
+    spec = yaml.safe_load(open('conduitspec.yaml').read())
+    config = bucket.get_config(CONFIG_PREFIX)
+    product = _find_build_product(spec, config)
+    product.release(action, spec['cfn']['template'], product.version)
     bucket.put_config(config, CONFIG_PREFIX)
+
+    if action != 'build':
+        product.tidy_versions()

@@ -40,6 +40,27 @@ def portfolio(portfolio_name, portfolio_provider, portfolio_description=None):
     )
 
 
+def product_by_id(product_id, s3_bucket, token=None):
+    client = boto3.client('servicecatalog')
+    if token is not None:
+        response = client.search_products_as_admin(
+            PageToken=token
+        )
+    else:
+        response = client.search_products_as_admin()
+    if response['ProductViewDetails']:
+        for found_product in response['ProductViewDetails']:
+            if found_product['ProductViewSummary']['ProductId'] == product_id:
+                print("Creating instance of Conduit handle...")
+                summary = found_product['ProductViewSummary']
+                conduit_product = product(summary['Name'], summary['Owner'],
+                                          s3_bucket, 'yaml', None, summary['ShortDescription'])
+                conduit_product.product_id = product_id
+                return conduit_product
+    if 'NextPageToken' in response:
+        return product_by_id(product_id, s3_bucket, token=response['NextPageToken'])
+
+
 def product(product_name, product_owner, s3_bucket, cfntype, portfolio_name, product_description=None):
     """
     Creates a new handle for a Service Catalog Product.
