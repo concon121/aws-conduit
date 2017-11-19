@@ -9,18 +9,53 @@ REGION = SESSION.region_name
 
 
 def s3(name):
+    """
+    Creates a new handle for an S3 bucket.
+
+    Args:
+        name (str): The name of the S3 bucket.
+
+    Return:
+        ConduitS3 (obj): An unpersisted instance of an S3 bucket.
+    """
     return ConduitS3(name, REGION)
 
 
-def portfolio(product_name, product_provider, portfolio_description=None):
+def portfolio(portfolio_name, portfolio_provider, portfolio_description=None):
+    """
+    Creates a new handle for a Service Catalog portfolio.
+
+    Args:
+        portfolio_name (str): The name to aply to the Portfolio.
+        portfolio_provider (str): The name of the Portfolio provider.
+        portfolio_description (str): Information about the Portfolio.
+
+    Return:
+        ConduitPortfolio: An unpersistened instance of a Portfolio.
+    """
     return ConduitPortfolio(
-        name=product_name,
+        name=portfolio_name,
         description=portfolio_description,
-        provider=product_provider
+        provider=portfolio_provider
     )
 
 
 def product(product_name, product_owner, s3_bucket, cfntype, portfolio_name, product_description=None):
+    """
+    Creates a new handle for a Service Catalog Product.
+
+    Args:
+        product_name (str): The name of the Product.
+        product_owner (str): The owner of the product.
+        s3_bucket (obj): A Conduit handle on an S3 Bucket.
+        cfntype (str): yaml or json.
+        portfolio_name (str): The Portfolio which this Product can be applied to.
+        product_description (str): Information about the product.
+
+    Return:
+        ConduitProduct: An unpersisted instance of a Product.
+    """
+
     return ConduitProduct(
         name=product_name,
         owner=product_owner,
