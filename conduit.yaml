@@ -18,4 +18,17 @@ portfolios:
     template_location: https://s3.eu-west-2.amazonaws.com/conduit-config-538162597997/test-portfolio/groovy-test-product.yaml
     template_prefix: test-portfolio/groovy-test-product.yaml
     version: 0.0.0+build.5
+  - !Product
+    bucket: !Bucket
+      name: conduit-config-538162597997
+      region: eu-west-2
+    cfn_type: yaml
+    description: new product
+    name: blahblahblah
+    owner: cbscl
+    portfolio: updated-name
+    product_id: prod-7razvoju75lge
+    template_location: https://s3.eu-west-2.amazonaws.com/conduit-config-538162597997/updated-name/new-prod/0.0.0/new-prod.yaml
+    template_prefix: updated-name/new-prod/0.0.0/new-prod.yaml
+    version: 0.0.0
   provider: cbscl

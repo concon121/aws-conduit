@@ -66,8 +66,8 @@ class Conduit(cmdln.Cmdln):
             conduit.new_portfolio(opts.name, opts.description)
         elif action == 'update':
             conduit.update_portfolio(opts.id, opts.name, opts.description)
-    #    if action == 'delete':
-    #        conduit.delete_portfolio(opts.name)
+        elif action == 'delete':
+            conduit.delete_portfolio(opts.id)
         elif action == 'list':
             conduit.list_portfolios()
         else:

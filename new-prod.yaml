@@ -1,0 +1,6 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  FalseS3:
+    Properties:
+      AccessControl: private
+    Type: AWS::S3::Bucket

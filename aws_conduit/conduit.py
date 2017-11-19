@@ -51,8 +51,10 @@ def new_portfolio(name, description, tags=None):
     bucket = configure()
     alias = get_alias()
     if alias:
+        print("Creating a new portfolio...")
         portfolio = factory.portfolio(name, alias, portfolio_description=description)
         portfolio.create(tags)
+        print("Create complete...")
         config = bucket.get_config(CONFIG_PREFIX)
         if 'portfolios' not in config:
             config['portfolios'] = []
@@ -88,6 +90,29 @@ def update_portfolio(portfolio_id, name=None, description=None):
             portfolio.update()
             print("Portfolio updated successfully...")
             break
+
+    bucket.put_config(config, CONFIG_PREFIX)
+
+
+def delete_portfolio(portfolio_id):
+    """
+    Delete a portfolio.
+
+    Args:
+        id (str): The id of the portfolio to delete.
+    """
+    if portfolio_id is None:
+        raise ValueError("A portfolio id must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Deleting portfolio with id: {}".format(portfolio_id))
+    for portfolio in config['portfolios']:
+        if portfolio.portfolio_id == portfolio_id:
+            for product in portfolio.products:
+                print("Disassociating product with id: {}".format(product.product_id))
+                product.disassociate(portfolio.portfolio_id)
+            portfolio.delete()
+            config['portfolios'].remove(portfolio)
 
     bucket.put_config(config, CONFIG_PREFIX)
 
@@ -183,7 +208,6 @@ def update_product(product_id, name, description, cfntype, tags=None):
                 product.update(support)
                 print("Product updated successfully...")
                 break
-            break
 
     bucket.put_config(config, CONFIG_PREFIX)
 
