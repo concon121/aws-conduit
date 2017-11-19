@@ -110,7 +110,7 @@ Once the S3 bucket is in place, the default support configuration for your produ
 
 ```
 > conduit start
-> conduit support --email "noone@home.com" --url "http://madeup.com" --description "This is the groovy support info"
+> conduit support -e "noone@home.com" -u "http://madeup.com" -d "This is the groovy support info"
 ```
 
 ### Conduit by Example
@@ -118,7 +118,7 @@ Once the S3 bucket is in place, the default support configuration for your produ
 #### Creating a new Portfolio
 
 ```
-> conduit portfolio create --n "My Portfolio" --d "This is my portfolio description"
+> conduit portfolio create -n "My Portfolio" -d "This is my portfolio description"
 ```
 
 #### Creating a new Product
@@ -129,6 +129,15 @@ Once the S3 bucket is in place, the default support configuration for your produ
 #### CI Build Increment
 ```
 > conduit build
+```
+```
+> conduit build patch
+```
+```
+> conduit build minor
+```
+```
+> conduit build major
 ```
 
 #### List all Portfolios
