@@ -7,6 +7,7 @@ import yaml
 @attr.s
 class ConduitPortfolio(yaml.YAMLObject):
     """Portfolio helper class."""
+
     yaml_loader = yaml.SafeLoader
     yaml_tag = u'!Portfolio'
     name = attr.ib()
@@ -21,9 +22,6 @@ class ConduitPortfolio(yaml.YAMLObject):
         Create a new Service Catalog portfolio.
 
         Args:
-            name (str): The display name of the new portfolio
-            description (str): A brief description of the portfolio
-            alias (str): The account alias to use as the portfolio provider
             tags (list): A list of tags to apply to the portfolio
         """
         response = self.service_catalog.create_portfolio(
@@ -36,10 +34,7 @@ class ConduitPortfolio(yaml.YAMLObject):
 
     def delete(self):
         """
-        Delete a Service Catalog portfolio by its display name.
-
-        Args:
-            name (str): The display name of the portfolio to delete.
+        Delete this Service Catalog portfolio.
         """
         portfolio_id = self.get_id()
         print(portfolio_id)
@@ -47,12 +42,22 @@ class ConduitPortfolio(yaml.YAMLObject):
             Id=portfolio_id
         )
 
+    def update(self):
+        """
+        Update a service catalog protfolio.
+        """
+        self.service_catalog.update_portfolio(
+            Id=self.portfolio_id,
+            DisplayName=self.name,
+            Description=self.description,
+            ProviderName=self.provider
+        )
+
     def exists(self, token=None):
         """
-        Test if a portfolio exists by its display name.
+        Test if this portfolio exists.
 
         Args:
-            name (str): The display name of the portfolio to test for.
             token (str): (Optional) The NextPageToken returned by boto3.
         """
         portfolios = self._get_portfolio_list(token)
@@ -64,10 +69,9 @@ class ConduitPortfolio(yaml.YAMLObject):
 
     def get_id(self, token=None):
         """
-        Get the id of a portfolio by its display name.
+        Get the id of this portfolio.
 
         Args:
-            name (str): The display name of the portfolio to test for.
             token (str): (Optional) The NextPageToken returned by boto3.
         """
         if self.portfolio_id:

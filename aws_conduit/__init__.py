@@ -39,6 +39,8 @@ class Conduit(cmdln.Cmdln):
                   help="The name of the portfolio.")
     @cmdln.option("-d", "--description",
                   help="Information about the portfolio.")
+    @cmdln.option("-i", "--id",
+                  help="The portfolio id for use on an update.")
     def do_portfolio(self, subcmd, opts, action):
         """
         ${cmd_name}: Portfolio management for the masses!
@@ -62,8 +64,8 @@ class Conduit(cmdln.Cmdln):
             raise ValueError("Not a valid action: {}".format(action))
         if action == 'create':
             conduit.new_portfolio(opts.name, opts.description)
-    #    if action == 'update':
-    #        conduit.update_portfolio(opts.name, opts.description)
+        if action == 'update':
+            conduit.update_portfolio(opts.id, opts.name, opts.description)
     #    if action == 'delete':
     #        conduit.delete_portfolio(opts.name)
         if action == 'list':

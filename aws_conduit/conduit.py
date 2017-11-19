@@ -63,35 +63,33 @@ def new_portfolio(name, description, tags=None):
         raise ValueError('An account alias needs to be set!')
 
 
-def update_portfolio(name, description, tags=None):
+def update_portfolio(portfolio_id, name=None, description=None):
     """
     Update a portfolio.
 
     Args:
         name (str): The name of the portfolio to create.
         description (str): A description of the portfolio to create.
-        tags (list): An optional list of tags to apply to all products in the portfolio.
 
     Return:-
         portfolio: An object handle on the portfolio.
     """
-    if name is None or description is None:
-        raise ValueError("name and description must have values")
-    if tags is None:
-        tags = []
+    if portfolio_id is None:
+        raise ValueError("A portfolio ID must be provided")
     bucket = configure()
-    alias = get_alias()
-    if alias:
-        portfolio = factory.portfolio(name, alias, portfolio_description=description)
-        portfolio.create(tags)
-        config = bucket.get_config(CONFIG_PREFIX)
-        if 'portfolios' not in config:
-            config['portfolios'] = []
-        config['portfolios'].append(portfolio)
-        bucket.put_config(config, CONFIG_PREFIX)
-        return portfolio
-    else:
-        raise ValueError('An account alias needs to be set!')
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Updating portfolio with id: {}".format(portfolio_id))
+    for portfolio in config['portfolios']:
+        if portfolio.portfolio_id == portfolio_id:
+            if name is not None:
+                portfolio.name = name
+            if description is not None:
+                portfolio.description = description
+            portfolio.update()
+            print("Portfolio updated successfully...")
+            break
+
+    bucket.put_config(config, CONFIG_PREFIX)
 
 
 def list_portfolios(token=None):
