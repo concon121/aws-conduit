@@ -1,10 +1,16 @@
 """Helper methods for working with S3"""
+import os
+
 import attr
 import boto3
 import yaml
 
 from aws_conduit.conduit_portfolio import ConduitPortfolio
 from aws_conduit.conduit_product import ConduitProduct
+
+LOCAL_STORE = os.path.join(os.path.expanduser('~'), '.conduit')
+if not os.path.exists(LOCAL_STORE):
+    os.makedirs(LOCAL_STORE)
 
 
 @attr.s
@@ -67,8 +73,8 @@ class ConduitS3(yaml.YAMLObject):
             prefix(str): The prefix of the yaml config.
         """
         file_name = prefix.split('/')[-1]
-        self.s3_client.download_file(self.name, prefix, file_name)
-        config = yaml.safe_load(open(file_name).read())
+        self.s3_client.download_file(self.name, prefix, os.path.join(LOCAL_STORE, file_name))
+        config = yaml.safe_load(open(os.path.join(LOCAL_STORE, file_name)).read())
         return config
 
     def put_config(self, content, prefix):
@@ -83,8 +89,8 @@ class ConduitS3(yaml.YAMLObject):
         if isinstance(content, dict):
             file_name = prefix.split('/')[-1]
             print("Uploading {} to {}...".format(file_name, self.name))
-            open(file_name, "w+").write(yaml.dump(content, default_flow_style=False))
-            obj.upload_file(file_name)
+            open(os.path.join(LOCAL_STORE, file_name), "w+").write(yaml.dump(content, default_flow_style=False))
+            obj.upload_file(os.path.join(LOCAL_STORE, file_name))
         else:
             print("Uploading {} to {}...".format(content, self.name))
             obj.upload_file(content)
