@@ -1,11 +1,15 @@
 import boto3
-
 from aws_conduit.conduit_portfolio import ConduitPortfolio
 from aws_conduit.conduit_product import ConduitProduct
 from aws_conduit.conduit_s3 import ConduitS3
+from aws_conduit.conduit_start import ConduitStart
 
 SESSION = boto3.session.Session()
 REGION = SESSION.region_name
+
+
+def start(account_id):
+    return ConduitStart(account_id)
 
 
 def s3(name):

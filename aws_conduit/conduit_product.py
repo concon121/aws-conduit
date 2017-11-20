@@ -229,3 +229,9 @@ class ConduitProduct(yaml.YAMLObject):
                 break
         print("Current product version is: {}".format(version))
         return version
+
+    def get_version_id(self):
+        versions = self.get_all_versions()
+        for item in versions:
+            if item['Name'] == self.version:
+                return item['Id']

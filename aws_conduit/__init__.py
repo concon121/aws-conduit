@@ -1,7 +1,6 @@
 import sys
 
 import cmdln
-
 from aws_conduit import conduit
 
 
@@ -94,6 +93,7 @@ class Conduit(cmdln.Cmdln):
             delete
             list
             associate
+            provision
 
         ${cmd_option_list}
         """
@@ -102,7 +102,8 @@ class Conduit(cmdln.Cmdln):
             'update',
             'delete',
             'list',
-            'associate'
+            'associate',
+            'provision'
         ]
         if action not in actions:
             raise ValueError("Not a valid action: {}".format(action))
@@ -111,11 +112,13 @@ class Conduit(cmdln.Cmdln):
         elif action == 'update':
             conduit.update_product(opts.id, opts.name, opts.description, opts.cfntype)
         elif action == 'delete':
-            conduit.delete_product(opts.id)
+            conduit.delete_product(opts.id, opts.name)
         elif action == 'list':
             conduit.list_products()
         elif action == 'associate':
             conduit.associate_product_with_portfolio(opts.id, opts.portfolio)
+        elif action == 'provision':
+            conduit.provision_product(opts.id, opts.name)
         else:
             print("{}: not a valid action for product".format(action))
 

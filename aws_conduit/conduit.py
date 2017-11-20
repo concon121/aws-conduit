@@ -1,13 +1,10 @@
 """A conduit for CI Pipelines in AWS!"""
-from datetime import datetime
-
 import boto3
 import yaml
-
 from aws_conduit import conduit_factory as factory
 
 CONFIG_PREFIX = 'conduit.yaml'
-BUCKET_PREFIX = 'conduit-config-'
+
 IAM = boto3.client('iam')
 STS = boto3.client('sts')
 ROW_FORMAT = "{:<30}" * 3
@@ -22,13 +19,10 @@ def configure():
     """
     account_id = STS.get_caller_identity().get('Account')
     print("Account Id: " + account_id)
-    bucket_name = BUCKET_PREFIX + account_id
-    bucket = factory.s3(bucket_name)
-    if not bucket.exists():
-        print("Creating S3: " + bucket_name)
-        bucket.create()
-        print("Setting initial configuration...")
-        bucket.put_config(dict(created=datetime.now()), CONFIG_PREFIX)
+    start = factory.start(account_id)
+    bucket = start.create_s3()
+    start.create_iam_role()
+
     return bucket
 
 
@@ -212,7 +206,7 @@ def update_product(product_id, name, description, cfntype, tags=None):
     bucket.put_config(config, CONFIG_PREFIX)
 
 
-def delete_product(product_id):
+def delete_product(product_id, product_name):
     """
     Delete a product.
 
@@ -261,6 +255,25 @@ def associate_product_with_portfolio(product_id, portfolio_id):
             product.portfolio = portfolio.name
 
     bucket.put_config(config, CONFIG_PREFIX)
+
+
+def provision_product(product_id, product_name):
+    if product_id is None:
+        raise ValueError("A product id must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Provisioning product...")
+    product = _find_product_by_id(config, product_id)
+    version_id = product.get_version_id()
+    client = boto3.client('servicecatalog')
+    response = client.describe_provisioning_parameters(
+        ProductId=product_id,
+        ProvisioningArtifactId=version_id,
+        PathId='testpath'
+    )
+    params = dict()
+    for param in response['ProvisioningArtifactParameters']:
+        params[param['ParameterKey']] = input(param['ParameterKey'] + ': ')
 
 
 def list_products():
@@ -348,3 +361,11 @@ def build(action):
 
     if action != 'build':
         product.tidy_versions()
+
+
+def _find_product_by_id(config, product_id):
+    for portfolio in config['portfolios']:
+        for product in portfolio.products:
+            if product.product_id == product_id:
+                return product
+    raise ValueError('Product not found: {}'.format(product_id))

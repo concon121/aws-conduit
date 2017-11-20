@@ -1,4 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  Hello:
+    Description: 'Hello World'
+    Type: String
+    Default: 'World!'
+
 Resources:
   FalseS3:
     Properties:
