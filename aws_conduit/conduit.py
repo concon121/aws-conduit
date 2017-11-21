@@ -275,39 +275,14 @@ def terminate_provisioned_product(product_id, stack_name):
     product.terminate(stack_name)
 
 
-def provision_product(product_id, product_name, stack_name):
+def provision_product(product_id, product_name, name):
     if product_id is None:
         raise ValueError("A product id must be provided")
     bucket = configure()
     config = bucket.get_config(CONFIG_PREFIX)
     print("Provisioning product...")
     product = _find_product_by_id(config, product_id)
-    version_id = product.get_version_id()
-    client = boto3.client('servicecatalog')
-    launch_paths = client.list_launch_paths(
-        ProductId=product_id,
-    )
-    print("Getting launch path...")
-    if launch_paths['LaunchPathSummaries']:
-        launch_path = launch_paths['LaunchPathSummaries'][0]['Id']
-        response = client.describe_provisioning_parameters(
-            ProductId=product_id,
-            ProvisioningArtifactId=version_id,
-            PathId=launch_path
-        )
-        print("Getting input parameters...")
-        params = []
-        for param in response['ProvisioningArtifactParameters']:
-            input_value = input('{} (Default: {}): '.format(param['ParameterKey'], param['DefaultValue']))
-            if input_value is None or input_value == '':
-                input_value = param['DefaultValue']
-            param = dict(
-                Key=param['ParameterKey'],
-                Value=input_value
-            )
-            params.append(param)
-        print(params)
-        product.provision(params, stack_name)
+    _provision(product, name)
 
 
 def list_products():
@@ -407,6 +382,10 @@ def provision_product(name):
     config = bucket.get_config(CONFIG_PREFIX)
     print("Provisioning product...")
     product = _find_build_product(spec, config)
+    _provision(product, name)
+
+
+def _provision(product, name):
     version_id = product.get_version_id()
     client = boto3.client('servicecatalog')
     launch_paths = client.list_launch_paths(
@@ -432,7 +411,6 @@ def provision_product(name):
                 Value=input_value
             )
             params.append(param)
-        print(params)
         product.provision(params, name)
 
 
