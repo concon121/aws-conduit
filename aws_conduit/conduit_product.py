@@ -249,6 +249,7 @@ class ConduitProduct(yaml.YAMLObject):
                 ProvisioningArtifactId=self.get_version_id(),
                 ProvisioningParameters=params
             )
+            print("Update success!")
         else:
             print("Provisioning now...")
             response = servicecatalog.provision_product(
@@ -257,7 +258,7 @@ class ConduitProduct(yaml.YAMLObject):
                 ProvisionedProductName=name,
                 ProvisioningParameters=params
             )
-        print(response)
+            print("Provision success!")
 
     def terminate(self, name):
         servicecatalog = self._get_assumed_conduit_servicecatalog()
@@ -268,7 +269,6 @@ class ConduitProduct(yaml.YAMLObject):
                 ProvisionedProductName=name,
                 IgnoreErrors=False
             )
-            print(response)
         else:
             print("Artifact is not provisioned.")
 
@@ -284,7 +284,6 @@ class ConduitProduct(yaml.YAMLObject):
                     'Value': 'self'
                 }
             )
-        print(response)
         for product in response['ProvisionedProducts']:
             print(product)
             if product['Name'] == name:
