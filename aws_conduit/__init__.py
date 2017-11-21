@@ -174,6 +174,15 @@ class Conduit(cmdln.Cmdln):
         """
         conduit.terminate_product(opts.name)
 
+    def do_sync(seld, subcmd, opts):
+        """
+        ${cmd_name}: Ensure conduit is up to date.
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        conduit.sync()
+
 
 def main():
     aws_conduit = Conduit()

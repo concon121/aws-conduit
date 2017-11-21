@@ -1,4 +1,5 @@
 import boto3
+from aws_conduit import helper
 from aws_conduit.conduit_portfolio import ConduitPortfolio
 from aws_conduit.conduit_product import ConduitProduct
 from aws_conduit.conduit_s3 import ConduitS3
@@ -8,7 +9,8 @@ SESSION = boto3.session.Session()
 REGION = SESSION.region_name
 
 
-def start(account_id):
+def start():
+    account_id = helper.ACCOUNT_ID
     return ConduitStart(account_id)
 
 
@@ -25,7 +27,7 @@ def s3(name):
     return ConduitS3(name, REGION)
 
 
-def portfolio(portfolio_name, portfolio_provider, portfolio_description=None):
+def portfolio(portfolio_name, portfolio_description=None):
     """
     Creates a new handle for a Service Catalog portfolio.
 
@@ -37,6 +39,7 @@ def portfolio(portfolio_name, portfolio_provider, portfolio_description=None):
     Return:
         ConduitPortfolio: An unpersistened instance of a Portfolio.
     """
+    portfolio_provider = helper.get_alias()
     return ConduitPortfolio(
         name=portfolio_name,
         description=portfolio_description,
@@ -44,7 +47,7 @@ def portfolio(portfolio_name, portfolio_provider, portfolio_description=None):
     )
 
 
-def product_by_id(product_id, s3_bucket, token=None):
+def product_by_id(product_id, token=None):
     client = boto3.client('servicecatalog')
     if token is not None:
         response = client.search_products_as_admin(
@@ -57,15 +60,14 @@ def product_by_id(product_id, s3_bucket, token=None):
             if found_product['ProductViewSummary']['ProductId'] == product_id:
                 print("Creating instance of Conduit handle...")
                 summary = found_product['ProductViewSummary']
-                conduit_product = product(summary['Name'], summary['Owner'],
-                                          s3_bucket, 'yaml', None, summary['ShortDescription'])
+                conduit_product = product(summary['Name'], None, summary['ShortDescription'])
                 conduit_product.product_id = product_id
                 return conduit_product
     if 'NextPageToken' in response:
-        return product_by_id(product_id, s3_bucket, token=response['NextPageToken'])
+        return product_by_id(product_id, token=response['NextPageToken'])
 
 
-def product(product_name, product_owner, s3_bucket, cfntype, portfolio_name, product_description=None):
+def product(product_name, portfolio_name, product_description=None):
     """
     Creates a new handle for a Service Catalog Product.
 
@@ -80,7 +82,9 @@ def product(product_name, product_owner, s3_bucket, cfntype, portfolio_name, pro
     Return:
         ConduitProduct: An unpersisted instance of a Product.
     """
-
+    product_owner = helper.get_alias()
+    s3_bucket = start().create_s3()
+    cfntype = "yaml"
     return ConduitProduct(
         name=product_name,
         owner=product_owner,
