@@ -90,6 +90,13 @@ class ConduitPortfolio(yaml.YAMLObject):
             else:
                 raise AttributeError('Portfolio was not found')
 
+    def associate_conduit(self, account_id):
+        response = self.service_catalog.associate_principal_with_portfolio(
+            PortfolioId=self.portfolio_id,
+            PrincipalARN='arn:aws:iam::{}:role/conduit/conduit-provisioner-role'.format(account_id),
+            PrincipalType='IAM'
+        )
+
     def _get_portfolio_list(self, token=None):
         if token:
             portfolios = self.service_catalog.list_portfolios(

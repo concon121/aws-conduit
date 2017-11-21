@@ -8,5 +8,5 @@ Parameters:
 Resources:
   FalseS3:
     Properties:
-      AccessControl: private
+      AccessControl: Private
     Type: AWS::S3::Bucket

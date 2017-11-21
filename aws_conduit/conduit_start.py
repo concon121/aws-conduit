@@ -13,17 +13,6 @@ CONFIG_PREFIX = 'conduit.yaml'
 class ConduitStart(object):
 
     account_id = attr.ib()
-    basic_role_policy = {
-        'Statement': [
-            {
-                'Principal': {
-                    'AWS': account_id
-                },
-                'Effect': 'Allow',
-                'Action': ['sts:AssumeRole']
-            },
-        ]
-    }
 
     def create_s3(self):
         bucket_name = BUCKET_PREFIX + self.account_id
@@ -42,9 +31,28 @@ class ConduitStart(object):
         )
         if not response['Roles']:
             print('Setting up IAM role...')
+            basic_role_policy = {
+                'Statement': [
+                    {
+                        'Principal': {
+                            'AWS': self.account_id
+                        },
+                        'Effect': 'Allow',
+                        'Action': ['sts:AssumeRole']
+                    },
+                ]
+            }
             iam.create_role(
                 Path='/conduit/',
-                RoleName='conduit-provisioner',
-                AssumeRolePolicyDocument=json.dumps(self.basic_role_policy),
+                RoleName='conduit-provisioner-role',
+                AssumeRolePolicyDocument=json.dumps(basic_role_policy),
                 Description='Deploy role for the Conduit automation tool'
+            )
+            iam.attach_role_policy(
+                RoleName='conduit-provisioner-role',
+                PolicyArn='arn:aws:iam::aws:policy/ServiceCatalogAdminFullAccess'
+            )
+            iam.attach_role_policy(
+                RoleName='conduit-provisioner-role',
+                PolicyArn='arn:aws:iam::aws:policy/ServiceCatalogEndUserAccess'
             )

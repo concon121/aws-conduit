@@ -82,6 +82,8 @@ class Conduit(cmdln.Cmdln):
                   help="The name of the portfolio.")
     @cmdln.option("-i", "--id",
                   help="The product id for use on an update.")
+    @cmdln.option("-s", "--stackname",
+                  help="The stack name when provisioning a prouct.")
     def do_product(self, subcmd, opts, action):
         """
         ${cmd_name}: Product management for the masses!
@@ -103,7 +105,8 @@ class Conduit(cmdln.Cmdln):
             'delete',
             'list',
             'associate',
-            'provision'
+            'provision',
+            'terminate'
         ]
         if action not in actions:
             raise ValueError("Not a valid action: {}".format(action))
@@ -112,13 +115,15 @@ class Conduit(cmdln.Cmdln):
         elif action == 'update':
             conduit.update_product(opts.id, opts.name, opts.description, opts.cfntype)
         elif action == 'delete':
-            conduit.delete_product(opts.id, opts.name)
+            conduit.delete_product(opts.id)
         elif action == 'list':
             conduit.list_products()
         elif action == 'associate':
             conduit.associate_product_with_portfolio(opts.id, opts.portfolio)
         elif action == 'provision':
-            conduit.provision_product(opts.id, opts.name)
+            conduit.provision_product(opts.id, opts.name, opts.stackname)
+        elif action == 'terminate':
+            conduit.terminate_provisioned_product(opts.id, opts.stackname)
         else:
             print("{}: not a valid action for product".format(action))
 
@@ -146,6 +151,28 @@ class Conduit(cmdln.Cmdln):
         else:
             print("Release new build version...")
             conduit.build('build')
+
+    @cmdln.option("-n", "--name",
+                  help="A name to assign to the provisioned product.")
+    def do_provision(self, subcmd, opts):
+        """
+        ${cmd_name}: Provision a product from a conduitspec.yaml
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        conduit.provision_product(opts.name)
+
+    @cmdln.option("-n", "--name",
+                  help="A name to assign to the provisioned product.")
+    def do_terminate(self, subcmd, opts):
+        """
+        ${cmd_name}: Terminate a product from a conduitspec.yaml
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        conduit.terminate_product(opts.name)
 
 
 def main():

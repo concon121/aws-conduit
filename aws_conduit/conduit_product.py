@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import attr
 import boto3
 import semver
@@ -235,3 +237,75 @@ class ConduitProduct(yaml.YAMLObject):
         for item in versions:
             if item['Name'] == self.version:
                 return item['Id']
+
+    def provision(self, params, name):
+        servicecatalog = self._get_assumed_conduit_servicecatalog()
+        is_provisioned = self.determine_if_provisioned(servicecatalog, name)
+        if is_provisioned:
+            print("Updating now...")
+            response = servicecatalog.update_provisioned_product(
+                ProvisionedProductName=name,
+                ProductId=self.product_id,
+                ProvisioningArtifactId=self.get_version_id(),
+                ProvisioningParameters=params
+            )
+        else:
+            print("Provisioning now...")
+            response = servicecatalog.provision_product(
+                ProductId=self.product_id,
+                ProvisioningArtifactId=self.get_version_id(),
+                ProvisionedProductName=name,
+                ProvisioningParameters=params
+            )
+        print(response)
+
+    def terminate(self, name):
+        servicecatalog = self._get_assumed_conduit_servicecatalog()
+        is_provisioned = self.determine_if_provisioned(servicecatalog, name)
+        if is_provisioned:
+            print("Terminating now...")
+            response = servicecatalog.terminate_provisioned_product(
+                ProvisionedProductName=name,
+                IgnoreErrors=False
+            )
+            print(response)
+        else:
+            print("Artifact is not provisioned.")
+
+    def determine_if_provisioned(self, servicecatalog, name, token=None):
+        if token:
+            response = servicecatalog.scan_provisioned_products(
+                PageToken='string'
+            )
+        else:
+            response = self.service_catalog.scan_provisioned_products(
+                AccessLevelFilter={
+                    'Key': 'Account',
+                    'Value': 'self'
+                }
+            )
+        print(response)
+        for product in response['ProvisionedProducts']:
+            print(product)
+            if product['Name'] == name:
+                return True
+        if 'NextPageToken' in response:
+            return self.determine_if_provisioned(servicecatalog, name, token=response['NextPageToken'])
+        else:
+            return False
+
+    def _get_assumed_conduit_servicecatalog(self):
+        sts = boto3.client('sts')
+        account_id = sts.get_caller_identity().get('Account')
+        print("Assumiing consuit IAM role...")
+        creds = sts.assume_role(
+            RoleArn='arn:aws:iam::{}:role/conduit/conduit-provisioner-role'.format(account_id),
+            RoleSessionName='conduit-{}'.format(hash('conduit'))
+        )
+        servicecatalog = boto3.client(
+            'servicecatalog',
+            aws_access_key_id=creds['Credentials']['AccessKeyId'],
+            aws_secret_access_key=creds['Credentials']['SecretAccessKey'],
+            aws_session_token=creds['Credentials']['SessionToken'],
+        )
+        return servicecatalog

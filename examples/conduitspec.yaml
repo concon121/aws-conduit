@@ -3,3 +3,8 @@ product: "groovy-test-product"
 cfn:
   template: "TestProduct.yaml"
   type: "yaml"
+deployProfile:
+  - actions:
+      - "s3:*"
+    resources:
+      - "*"

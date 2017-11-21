@@ -1,4 +1,6 @@
 """A conduit for CI Pipelines in AWS!"""
+import json
+
 import boto3
 import yaml
 from aws_conduit import conduit_factory as factory
@@ -18,11 +20,17 @@ def configure():
         bucket: An object handle on the Conduit configuration bucket.
     """
     account_id = STS.get_caller_identity().get('Account')
+    session = boto3.session.Session()
+    region = session.region_name
     print("Account Id: " + account_id)
     start = factory.start(account_id)
     bucket = start.create_s3()
     start.create_iam_role()
-
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Ensuring Conduit is up to date...")
+    for portfolio in config['portfolios']:
+        print("Associating conduit with {}".format(portfolio.name))
+        portfolio.associate_conduit(account_id)
     return bucket
 
 
@@ -257,7 +265,17 @@ def associate_product_with_portfolio(product_id, portfolio_id):
     bucket.put_config(config, CONFIG_PREFIX)
 
 
-def provision_product(product_id, product_name):
+def terminate_provisioned_product(product_id, stack_name):
+    if product_id is None:
+        raise ValueError("A product id must be provided")
+    bucket = configure()
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Terminating product...")
+    product = _find_product_by_id(config, product_id)
+    product.terminate(stack_name)
+
+
+def provision_product(product_id, product_name, stack_name):
     if product_id is None:
         raise ValueError("A product id must be provided")
     bucket = configure()
@@ -266,14 +284,30 @@ def provision_product(product_id, product_name):
     product = _find_product_by_id(config, product_id)
     version_id = product.get_version_id()
     client = boto3.client('servicecatalog')
-    response = client.describe_provisioning_parameters(
+    launch_paths = client.list_launch_paths(
         ProductId=product_id,
-        ProvisioningArtifactId=version_id,
-        PathId='testpath'
     )
-    params = dict()
-    for param in response['ProvisioningArtifactParameters']:
-        params[param['ParameterKey']] = input(param['ParameterKey'] + ': ')
+    print("Getting launch path...")
+    if launch_paths['LaunchPathSummaries']:
+        launch_path = launch_paths['LaunchPathSummaries'][0]['Id']
+        response = client.describe_provisioning_parameters(
+            ProductId=product_id,
+            ProvisioningArtifactId=version_id,
+            PathId=launch_path
+        )
+        print("Getting input parameters...")
+        params = []
+        for param in response['ProvisioningArtifactParameters']:
+            input_value = input('{} (Default: {}): '.format(param['ParameterKey'], param['DefaultValue']))
+            if input_value is None or input_value == '':
+                input_value = param['DefaultValue']
+            param = dict(
+                Key=param['ParameterKey'],
+                Value=input_value
+            )
+            params.append(param)
+        print(params)
+        product.provision(params, stack_name)
 
 
 def list_products():
@@ -363,9 +397,80 @@ def build(action):
         product.tidy_versions()
 
 
+def provision_product(name):
+    if name is None:
+        raise ValueError("A stage must be provided")
+    bucket = configure()
+    spec = yaml.safe_load(open('conduitspec.yaml').read())
+    if 'deployProfile' in spec:
+        update_iam_role(spec)
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Provisioning product...")
+    product = _find_build_product(spec, config)
+    version_id = product.get_version_id()
+    client = boto3.client('servicecatalog')
+    launch_paths = client.list_launch_paths(
+        ProductId=product.product_id,
+    )
+    print("Getting launch path...")
+    if launch_paths['LaunchPathSummaries']:
+        launch_path = launch_paths['LaunchPathSummaries'][0]['Id']
+        response = client.describe_provisioning_parameters(
+            ProductId=product.product_id,
+            ProvisioningArtifactId=version_id,
+            PathId=launch_path
+        )
+        print("Getting input parameters...")
+        params = []
+        for param in response['ProvisioningArtifactParameters']:
+            input_value = input('{} (Default: {}): '.format(param['ParameterKey'],
+                                                            param['DefaultValue']))
+            if input_value is None or input_value == '':
+                input_value = param['DefaultValue']
+            param = dict(
+                Key=param['ParameterKey'],
+                Value=input_value
+            )
+            params.append(param)
+        print(params)
+        product.provision(params, name)
+
+
+def terminate_product(product_name):
+    if product_name is None:
+        raise ValueError("A product name must be provided")
+    bucket = configure()
+    spec = yaml.safe_load(open('conduitspec.yaml').read())
+    config = bucket.get_config(CONFIG_PREFIX)
+    print("Terminating product...")
+    product = _find_build_product(spec, config)
+    product.terminate(product_name)
+
+
 def _find_product_by_id(config, product_id):
     for portfolio in config['portfolios']:
         for product in portfolio.products:
             if product.product_id == product_id:
                 return product
     raise ValueError('Product not found: {}'.format(product_id))
+
+
+def update_iam_role(spec):
+    if 'deployProfile' in spec:
+        statements = []
+        policy = dict(
+            Version="2012-10-17",
+            Statement=statements
+        )
+        for entry in spec['iam']:
+            statement = dict(
+                Effect="Allow",
+                Action=entry['actions'],
+                Resource=entry['resources']
+            )
+            statements.append(statement)
+        boto3.client('iam').put_role_policy(
+            RoleName='conduit-provisioner-role',
+            PolicyName='conduit-policy',
+            PolicyDocument=json.dumps(policy)
+        )
