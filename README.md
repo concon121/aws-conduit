@@ -4,7 +4,7 @@ Product management for AWS Service Catalog.
 
 ## Installation
 
-TODO - AWS Conduit will be available to install via pip.
+AWS Conduit is available to install via pip.
 
 ```
 pip install aws_conduit
