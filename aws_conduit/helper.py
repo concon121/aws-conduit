@@ -1,4 +1,5 @@
 import boto3
+
 from aws_conduit import conduit_factory as factory
 
 SESSION = boto3.session.Session()
@@ -70,18 +71,38 @@ def inject_config(function):
     return wrapper
 
 
-def find_build_product(spec, config):
+def find_build_product(to_find_product, spec, config):
     portfolio = None
     product = None
     for port in config['portfolios']:
         if port.name == spec['portfolio']:
             portfolio = port
             for prod in portfolio.products:
-                if prod.name == spec['product']:
+                if prod.name == to_find_product:
                     product = prod
                     break
     if portfolio is None or not portfolio.exists():
-        raise ValueError("The specified portfolio does not exist: {}".format(spec['portfolio']))
-    if product is None or not product.exists():
-        raise ValueError("The product {} does not exist in portfolio {}".format(spec['product'], spec['portfolio']))
+        raise ValueError("The specified portfolio does not exist: {}".format(to_find_product))
+    elif product is None or not product.exists():
+        raise ValueError("The product {} does not exist in portfolio {}".format(to_find_product, spec['portfolio']))
+    return product
+
+
+def find_provisioned_build_product(to_find_product, spec, config):
+    portfolio = None
+    product = None
+    for port in config['portfolios']:
+        if port.name == spec['portfolio']:
+            portfolio = port
+            for prod in portfolio.products:
+                if hasattr(prod, provisioned):
+                    for prov in prod.provisioned:
+                        if prov == to_find_product:
+                            product = prod
+                            break
+
+    if portfolio is None or not portfolio.exists():
+        raise ValueError("The specified portfolio does not exist: {}".format(to_find_product))
+    elif product is None or not product.exists():
+        raise ValueError("The product {} does not exist in portfolio {}".format(to_find_product, spec['portfolio']))
     return product

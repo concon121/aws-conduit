@@ -152,6 +152,8 @@ class Conduit(cmdln.Cmdln):
             print("Release new build version...")
             conduit.build('build')
 
+    @cmdln.option("-p", "--product",
+                  help="The name of the product to provision.")
     @cmdln.option("-n", "--name",
                   help="A name to assign to the provisioned product.")
     def do_provision(self, subcmd, opts):
@@ -161,7 +163,7 @@ class Conduit(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        conduit.provision_product(opts.name)
+        conduit.provision_product_build(opts.product, opts.name)
 
     @cmdln.option("-n", "--name",
                   help="A name to assign to the provisioned product.")

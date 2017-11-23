@@ -1,8 +1,10 @@
 """A conduit for CI Pipelines in AWS!"""
 import json
+import subprocess
 
 import boto3
 import yaml
+
 from aws_conduit import conduit_factory as factory
 from aws_conduit import helper
 from aws_conduit.helper import inject_config
@@ -306,22 +308,41 @@ def set_default_support_config(description=None, email=None, url=None, config=No
 def build(action, config=None):
     print("Releasing a new build version...")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
-    product = helper.find_build_product(spec, config)
-    product.release(action, spec['cfn']['template'], product.version)
-    if action != 'build':
-        product.tidy_versions()
+    for product_spec in spec['products']:
+        product = helper.find_build_product(product_spec['name'], spec, config)
+        if 'build' in product_spec:
+            for step in product_spec['build']:
+                subprocess.call(step, shell=True)
+        update_iam_role(product_spec, product)
+        product.release(action, product_spec['artifact'], product.version)
+        if 'associatedResources' in product_spec:
+            for resource in product_spec['associatedResources']:
+                product.put_resource(resource)
+        if action != 'build':
+            product.tidy_versions()
 
 
 @inject_config
-def provision_product_build(name, config=None):
+def provision_product_build(product_name, name, config=None):
     if name is None:
         raise ValueError("A stage must be provided")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
-    if 'deployProfile' in spec:
-        update_iam_role(spec)
-    print("Provisioning product...")
-    product = helper.find_build_product(spec, config)
-    _provision(product, name)
+    if 'products' in spec:
+        product_spec = None
+        for product in spec['products']:
+            if product['name'] == product_name:
+                product_spec = product
+        if product_spec is None:
+            raise ValueError("The requested product was not defined in conduitspec.yaml")
+        print("Provisioning product...")
+        product = helper.find_build_product(product_name, spec, config)
+        update_iam_role(product_spec, product)
+        _provision(product, name)
+        if not hasattr(product, 'provisioned'):
+            product.provisioned = []
+        product.provisioned.append(name)
+    else:
+        raise ValueError("No products defined in conduitspec.yaml")
 
 
 def _provision(product, name):
@@ -340,45 +361,74 @@ def _provision(product, name):
         )
         print("Getting input parameters...")
         params = []
+        # conduit-config-977855701381/andover-ci/product-stack/0.0.0+build.6
+        params.append(dict(
+            Key="ConduitStackKey",
+            Value="{}/{}/{}/{}".format(product.bucket.name,
+                                       product.portfolio,
+                                       product.name,
+                                       product.version)
+        ))
         for param in response['ProvisioningArtifactParameters']:
-            input_value = input('{} (Default: {}): '.format(param['ParameterKey'],
-                                                            param['DefaultValue']))
-            if input_value is None or input_value == '':
-                input_value = param['DefaultValue']
-            param = dict(
-                Key=param['ParameterKey'],
-                Value=input_value
-            )
-            params.append(param)
+            if param['ParameterKey'] != "ConduitStackKey":
+                if 'DefaultValue' in param:
+                    input_value = input('{} (Default: {}): '.format(param['ParameterKey'],
+                                                                    param['DefaultValue']))
+                else:
+                    input_value = input('{}: '.format(param['ParameterKey']))
+                if input_value is None or input_value == '':
+                    input_value = param['DefaultValue']
+                param = dict(
+                    Key=param['ParameterKey'],
+                    Value=input_value
+                )
+                params.append(param)
+        print(params)
         product.provision(params, name)
 
 
 @inject_config
-def terminate_product(product_name, config=None):
-    if product_name is None:
+def terminate_product(provisioned_product_name, config=None):
+    if provisioned_product_name is None:
         raise ValueError("A product name must be provided")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
     print("Terminating product...")
-    product = helper.find_build_product(spec, config)
-    product.terminate(product_name)
+    product = None
+    for port in config['portfolios']:
+        if port.name == spec['portfolio']:
+            portfolio = port
+            for prod in portfolio.products:
+                product = prod
+                break
+    #product = helper.find_provisioned_build_product(provisioned_product_name, spec, config)
+    product.terminate(provisioned_product_name)
+    product.provisioned.remove(provisioned_product_name)
 
 
-def update_iam_role(spec):
+def update_iam_role(spec, product):
+    try:
+        if 'roleName' in spec:
+            product.create_role(spec['roleName'])
+        else:
+            raise ValueError('A roleName must be specified for your product.')
+    except:
+        print('Role probably already exists...')
+
     if 'deployProfile' in spec:
+        print('Updating IAM Role...')
         statements = []
         policy = dict(
             Version="2012-10-17",
             Statement=statements
         )
-        for entry in spec['iam']:
+        for entry in spec['deployProfile']:
             statement = dict(
                 Effect="Allow",
                 Action=entry['actions'],
                 Resource=entry['resources']
             )
             statements.append(statement)
-        boto3.client('iam').put_role_policy(
-            RoleName='conduit-provisioner-role',
-            PolicyName='conduit-policy',
-            PolicyDocument=json.dumps(policy)
-        )
+
+        product.role.update_policy(policy)
+    else:
+        raise ValueError('No deploy profile.  Will not continute...')

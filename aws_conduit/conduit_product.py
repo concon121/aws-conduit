@@ -1,9 +1,11 @@
 from datetime import datetime
 
-import attr
 import boto3
-import semver
 import yaml
+
+import attr
+import semver
+from aws_conduit import conduit_factory as factory
 
 
 @attr.s
@@ -20,6 +22,8 @@ class ConduitProduct(yaml.YAMLObject):
     template_prefix = attr.ib(default=None)
     product_id = attr.ib(default=None)
     version = attr.ib(default="0.0.0")
+    provisioned = attr.ib(default=[])
+    role = attr.ib(default=None)
     service_catalog = boto3.client('servicecatalog')
 
     def _add_initial_template(self):
@@ -72,6 +76,13 @@ class ConduitProduct(yaml.YAMLObject):
             },
         )
         self.product_id = create_response['ProductViewDetail']['ProductViewSummary']['ProductId']
+        # self.create_role()
+
+    def create_role(self, name):
+        if self.role is not None:
+            if self.role.name != name:
+                self.role = factory.role(name)
+                self.role.create()
 
     def add_to_portfolio(self, portfolio_id):
         # if not self.product_id:
@@ -194,6 +205,10 @@ class ConduitProduct(yaml.YAMLObject):
         self.version = product_version
         print("Released new product version: {}".format(product_version))
 
+    def put_resource(self, path):
+        print("Adding resource to release: {}".format(path))
+        self.bucket.put_config(path, "{}/{}/{}/{}".format(self.portfolio, self.name, self.version, path))
+
     def tidy_versions(self):
         versions = self.get_all_versions()
         version = self.version
@@ -210,11 +225,15 @@ class ConduitProduct(yaml.YAMLObject):
             ProductId=self.product_id,
             ProvisioningArtifactId=version_id
         )
-        key = "{}/{}/{}/{}.{}".format(self.portfolio, self.name, version_name, self.name, self.cfn_type)
-        bucket = self.bucket.s3_resource.Bucket(self.bucket.name)
-        for obj in bucket.objects.all():
-            if obj.key == key:
-                obj.delete()
+        key = "{}/{}/{}".format(self.portfolio, self.name, version_name)
+
+        s3 = self.bucket.s3_resource
+        objects_to_delete = s3.meta.client.list_objects(Bucket=self.bucket.name, Prefix=key)
+
+        delete_keys = {'Objects': []}
+        delete_keys['Objects'] = [{'Key': k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
+
+        s3.meta.client.delete_objects(Bucket=self.bucket.name, Delete=delete_keys)
 
     def get_all_versions(self):
         response = self.service_catalog.list_provisioning_artifacts(

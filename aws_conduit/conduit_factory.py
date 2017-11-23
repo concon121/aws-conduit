@@ -1,7 +1,9 @@
 import boto3
+
 from aws_conduit import helper
 from aws_conduit.conduit_portfolio import ConduitPortfolio
 from aws_conduit.conduit_product import ConduitProduct
+from aws_conduit.conduit_role import ConduitRole
 from aws_conduit.conduit_s3 import ConduitS3
 from aws_conduit.conduit_start import ConduitStart
 
@@ -93,3 +95,8 @@ def product(product_name, portfolio_name, product_description=None):
         portfolio=portfolio_name,
         description=product_description
     )
+
+
+def role(role_name):
+    role = ConduitRole(role_name)
+    return role
