@@ -115,7 +115,7 @@ class Conduit(cmdln.Cmdln):
         elif action == 'update':
             conduit.update_product(opts.id, opts.name, opts.description, opts.cfntype)
         elif action == 'delete':
-            conduit.delete_product(opts.id)
+            conduit.delete_product(opts.id, None)
         elif action == 'list':
             conduit.list_products()
         elif action == 'associate':

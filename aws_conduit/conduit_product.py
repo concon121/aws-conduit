@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 import boto3
@@ -79,10 +80,14 @@ class ConduitProduct(yaml.YAMLObject):
         # self.create_role()
 
     def create_role(self, name):
+        print(self.role)
         if self.role is not None:
             if self.role.name != name:
                 self.role = factory.role(name)
                 self.role.create()
+        else:
+            self.role = factory.role(name)
+            self.role.create()
 
     def add_to_portfolio(self, portfolio_id):
         # if not self.product_id:
@@ -233,6 +238,7 @@ class ConduitProduct(yaml.YAMLObject):
         delete_keys = {'Objects': []}
         delete_keys['Objects'] = [{'Key': k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
 
+        print("Deleting keys: {}".format(delete_keys))
         s3.meta.client.delete_objects(Bucket=self.bucket.name, Delete=delete_keys)
 
     def get_all_versions(self):
@@ -327,3 +333,27 @@ class ConduitProduct(yaml.YAMLObject):
             aws_session_token=creds['Credentials']['SessionToken'],
         )
         return servicecatalog
+
+    def create_deployer_launch_constraint(self, portfolio):
+        print("Creating Launch configuration...")
+        response = self.service_catalog.list_constraints_for_portfolio(
+            PortfolioId=portfolio.portfolio_id,
+            ProductId=self.product_id
+        )
+        exists = False
+        for item in response['ConstraintDetails']:
+            if item['Type'] == 'LAUNCH':
+                print("Launch configuration exists, nothing to do.")
+                exists = True
+                break
+        if not exists:
+            params = dict(
+                RoleArn=self.role.role_arn
+            )
+            response = self.service_catalog.create_constraint(
+                PortfolioId=portfolio.portfolio_id,
+                ProductId=self.product_id,
+                Parameters=json.dumps(params),
+                Type='LAUNCH',
+                Description='Launch configuration for {}'.format(self.name)
+            )

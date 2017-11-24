@@ -1,7 +1,8 @@
 """Helper methods for working with Service Catalog Portfolios."""
-import attr
 import boto3
 import yaml
+
+import attr
 
 
 @attr.s

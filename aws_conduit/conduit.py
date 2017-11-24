@@ -313,7 +313,9 @@ def build(action, config=None):
         if 'build' in product_spec:
             for step in product_spec['build']:
                 subprocess.call(step, shell=True)
+        print(product_spec)
         update_iam_role(product_spec, product)
+        product.create_deployer_launch_constraint(helper.get_portfolio(config, name=spec['portfolio']))
         product.release(action, product_spec['artifact'], product.version)
         if 'associatedResources' in product_spec:
             for resource in product_spec['associatedResources']:
@@ -406,6 +408,7 @@ def terminate_product(provisioned_product_name, config=None):
 
 
 def update_iam_role(spec, product):
+    print(product)
     try:
         if 'roleName' in spec:
             product.create_role(spec['roleName'])
