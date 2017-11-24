@@ -1,4 +1,5 @@
 """A conduit for CI Pipelines in AWS!"""
+import fileinput
 import json
 import subprocess
 
@@ -302,6 +303,8 @@ def set_default_support_config(description=None, email=None, url=None, config=No
         support['url'] = url
     config['support'] = support
     print("Writing new support configuration...")
+
+
 
 
 @inject_config

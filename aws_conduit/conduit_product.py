@@ -1,3 +1,4 @@
+import fileinput
 import json
 from datetime import datetime
 
@@ -7,6 +8,8 @@ import yaml
 import attr
 import semver
 from aws_conduit import conduit_factory as factory
+
+RESOURCES_KEY = "__resources__"
 
 
 @attr.s
@@ -192,7 +195,9 @@ class ConduitProduct(yaml.YAMLObject):
         self.release_new_build(local_template, product_version)
 
     def release_new_build(self, local_template, product_version):
+        self.replace_resources(local_template, version=product_version)
         self.bucket.put_config(local_template, "{}/{}/{}/{}.{}".format(self.portfolio, self.name, product_version, self.name, self.cfn_type))
+        self.revert_resources(local_template, version=product_version)
         template_url = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, self.name, self.cfn_type)
         print("Creating new version to template: {}".format(template_url))
         self.service_catalog.create_provisioning_artifact(
@@ -210,9 +215,48 @@ class ConduitProduct(yaml.YAMLObject):
         self.version = product_version
         print("Released new product version: {}".format(product_version))
 
-    def put_resource(self, path):
+    def put_resource(self, path, version=None):
+        if version is None:
+            key = "{}/{}/{}/{}".format(self.portfolio, self.name, self.version, path)
+        else:
+            key = "{}/{}/{}/{}".format(self.portfolio, self.name, version, path)
         print("Adding resource to release: {}".format(path))
-        self.bucket.put_config(path, "{}/{}/{}/{}".format(self.portfolio, self.name, self.version, path))
+        self.replace_resources(path)
+        self.bucket.put_config(path, key)
+        self.replace_resources(path)
+
+    def replace_resources(self, path, version=None):
+        if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
+            if version is None:
+                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, self.version)
+            else:
+                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, version)
+
+            f = open(path, 'r')
+            filedata = f.read()
+            f.close()
+
+            newdata = filedata.replace(RESOURCES_KEY, directory)
+
+            f = open(path, 'w')
+            f.write(newdata)
+            f.close()
+
+    def revert_resources(self, path, version=None):
+        if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
+            if version is None:
+                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, self.version)
+            else:
+                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, version)
+            f = open(path, 'r')
+            filedata = f.read()
+            f.close()
+
+            newdata = filedata.replace(directory, RESOURCES_KEY)
+
+            f = open(path, 'w')
+            f.write(newdata)
+            f.close()
 
     def tidy_versions(self):
         versions = self.get_all_versions()
@@ -238,8 +282,9 @@ class ConduitProduct(yaml.YAMLObject):
         delete_keys = {'Objects': []}
         delete_keys['Objects'] = [{'Key': k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
 
-        print("Deleting keys: {}".format(delete_keys))
-        s3.meta.client.delete_objects(Bucket=self.bucket.name, Delete=delete_keys)
+        if delete_keys['Objects']:
+            print("Deleting keys: {}".format(delete_keys))
+            s3.meta.client.delete_objects(Bucket=self.bucket.name, Delete=delete_keys)
 
     def get_all_versions(self):
         response = self.service_catalog.list_provisioning_artifacts(
