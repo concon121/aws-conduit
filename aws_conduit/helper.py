@@ -1,5 +1,5 @@
 import boto3
-
+import semver
 from aws_conduit import conduit_factory as factory
 
 SESSION = boto3.session.Session()
@@ -7,6 +7,8 @@ IAM = boto3.client('iam')
 STS = boto3.client('sts')
 
 CONFIG_PREFIX = 'conduit.yaml'
+
+RESOURCES_KEY = "__resources__"
 
 
 def get_region():
@@ -106,3 +108,75 @@ def find_provisioned_build_product(to_find_product, spec, config):
     elif product is None or not product.exists():
         raise ValueError("The product {} does not exist in portfolio {}".format(to_find_product, spec['portfolio']))
     return product
+
+
+def find_s3_build_product(spec, config):
+    portfolio = None
+    default_product = dict(
+        name=spec['product'],
+        currentVersion='0.0.0',
+        nextVersion='0.0.0'
+    )
+    product = default_product
+    for port in config['portfolios']:
+        if port.name == spec['portfolio']:
+            portfolio = port
+            for prod in portfolio['products']:
+                if prod['name'] == spec['product']:
+                    return prod
+            portfolio['products'].append(default_product)
+    config['portfolios'].append(dict(
+        name=spec['portfolio'],
+        products=[default_product]
+    ))
+    return product
+
+
+def next_version(release_type, current_version):
+    product_version = current_version
+    if release_type == 'build':
+        product_version = semver.bump_build(current_version)
+    if release_type == 'major':
+        product_version = semver.bump_major(current_version)
+    if release_type == 'minor':
+        product_version = semver.bump_minor(current_version)
+    if release_type == 'patch':
+        product_version = semver.bump_patch(current_version)
+    return product_version
+
+
+def put_resource(path, bucket, portfolio, product, version, environment='core'):
+    key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
+    directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
+    print("Adding resource to release: {}".format(path))
+    replace_resources(path, directory, version)
+    bucket.put_config(path, key)
+    replace_resources(path, directory, version)
+
+
+@read_write
+def replace_resources(path, directory, version=None, file_data=None):
+    if file_data is not None:
+        return file_data.replace(RESOURCES_KEY, directory)
+
+
+@read_write
+def revert_resources(path, directory, file_data=None):
+    if file_data is not None:
+        return file_data.replace(directory, RESOURCES_KEY)
+
+
+def read_write(function):
+
+    def wrapper(*args, **kwargs):
+        if 'path' in kwargs:
+            if kwargs['path'].endswith('yaml') or kwargs['path'].endswith('yml') or kwargs['path'].endswith('json'):
+                f = open(kwargs['path'], 'r')
+                filedata = f.read()
+                f.close()
+                newdata = function(*args, **kwargs, file_data=filedata)
+                if newdata is not None:
+                    f = open(kwargs['path'], 'w')
+                    f.write(newdata)
+                    f.close()
+    return wrapper

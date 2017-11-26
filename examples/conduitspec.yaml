@@ -1,6 +1,6 @@
-portfolio: "test-portfolio"
-products:
-  - name: "groovy-test-product"
+inventory:
+  - product: "groovy-test-product"
+    portfolio: "test-portfolio"
     build:
       - echo "This is a build step!"
     cfn:

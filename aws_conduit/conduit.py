@@ -1,13 +1,10 @@
 """A conduit for CI Pipelines in AWS!"""
-import fileinput
-import json
 import subprocess
 
-import boto3
 import yaml
 from aws_conduit import conduit_factory as factory
 from aws_conduit import helper
-from aws_conduit.aws import service_catalog
+from aws_conduit.aws import iam, service_catalog
 from aws_conduit.helper import inject_config
 
 CONFIG_PREFIX = 'conduit.yaml'
@@ -114,8 +111,8 @@ def delete_portfolio(portfolio_id, config=None):
     config['portfolios'].remove(portfolio)
 
 
-def list_portfolios(token=None):
-    print(ROW_FORMAT.format("Name", "Id", "Description"))
+def list_portfolios():
+    print(service_catalog.ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)
     service_catalog.list_all_portfolios()
 
@@ -184,7 +181,7 @@ def update_product(product_id, name, description, cfntype, tags=None, config=Non
 
 
 @inject_config
-def delete_product(product_id, product_name, config=None):
+def delete_product(product_id, config=None):
     """
     Delete a product.
 
@@ -235,7 +232,7 @@ def terminate_provisioned_product(product_id, stack_name, config=None):
 
 
 @inject_config
-def provision_product(product_id, product_name, name, config=None):
+def provision_product(product_id, name, config=None):
     if product_id is None:
         raise ValueError("A product id must be provided")
     print("Provisioning product...")
@@ -244,7 +241,7 @@ def provision_product(product_id, product_name, name, config=None):
 
 
 def list_products():
-    print(ROW_FORMAT.format("Name", "Id", "Description"))
+    print(service_catalog.ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)
     service_catalog.list_all_products()
 
@@ -271,24 +268,47 @@ def set_default_support_config(description=None, email=None, url=None, config=No
     print("Writing new support configuration...")
 
 
-@inject_config
-def build(action, config=None):
+def build(action):
     print("Releasing a new build version...")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
     for product_spec in spec['products']:
-        product = helper.find_build_product(product_spec['name'], spec, config)
+        # Perform Build Steps
         if 'build' in product_spec:
             for step in product_spec['build']:
                 subprocess.call(step, shell=True)
-        print(product_spec)
-        update_iam_role(product_spec, product)
-        product.create_deployer_launch_constraint(helper.get_portfolio(config, name=spec['portfolio']))
-        product.release(action, product_spec['artifact'], product.version)
-        if 'associatedResources' in product_spec:
-            for resource in product_spec['associatedResources']:
-                product.put_resource(resource)
-        if action != 'build':
-            product.tidy_versions()
+        if spec['serviceCatalog']:
+            _service_catalog_build(action, spec, product_spec)
+        else:
+            _s3_build(action, product_spec)
+
+
+@inject_config
+def _service_catalog_build(action, spec, product_spec, config=None):
+    product = helper.find_build_product(product_spec['name'], spec, config)
+    print(product_spec)
+    update_iam_role(product_spec)
+    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=spec['portfolio']))
+    product.release(action, product_spec['artifact'], product.version)
+    if 'associatedResources' in product_spec:
+        for resource in product_spec['associatedResources']:
+            product.put_resource(resource)
+    if action != 'build':
+        product.tidy_versions()
+
+
+@inject_config
+def _s3_build(action, spec, product_spec, config=None):
+    print(product_spec)
+    product = helper.find_s3_build_product(product_spec, config)
+    next_version = helper.next_version(action, product['current_version'])
+    start = factory.start()
+    bucket = start.create_s3()
+    helper.put_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+    if 'associatedResources' in product_spec:
+        for resource in product_spec['associatedResources']:
+            helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
+    # if action != 'build':
+    #    product.tidy_versions()
 
 
 @inject_config
@@ -305,7 +325,7 @@ def provision_product_build(product_name, name, config=None):
             raise ValueError("The requested product was not defined in conduitspec.yaml")
         print("Provisioning product...")
         product = helper.find_build_product(product_name, spec, config)
-        update_iam_role(product_spec, product)
+        update_iam_role(product_spec)
         _provision(product, name)
         if not hasattr(product, 'provisioned'):
             product.provisioned = []
@@ -361,11 +381,10 @@ def terminate_product(provisioned_product_name, config=None):
     product.provisioned.remove(provisioned_product_name)
 
 
-def update_iam_role(spec, product):
-    print(product)
+def update_iam_role(spec):
     try:
         if 'roleName' in spec:
-            product.create_role(spec['roleName'])
+            iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['product']))
         else:
             raise ValueError('A roleName must be specified for your product.')
     except:
@@ -386,6 +405,6 @@ def update_iam_role(spec, product):
             )
             statements.append(statement)
 
-        product.role.update_policy(policy)
+        iam.put_role_policy(spec['roleName'], 'deploy-policy', policy)
     else:
         raise ValueError('No deploy profile.  Will not continute...')

@@ -6,8 +6,6 @@ import yaml
 from aws_conduit import conduit_factory as factory
 from aws_conduit.aws import s3, service_catalog
 
-RESOURCES_KEY = "__resources__"
-
 
 @attr.s
 class ConduitProduct(yaml.YAMLObject):
@@ -153,49 +151,6 @@ class ConduitProduct(yaml.YAMLObject):
         service_catalog.new_version(self.product_id, product_version, template_url)
         self.version = product_version
         print("Released new product version: {}".format(product_version))
-
-    def put_resource(self, path, version=None):
-        if version is None:
-            key = "{}/{}/{}/{}".format(self.portfolio, self.name, self.version, path)
-        else:
-            key = "{}/{}/{}/{}".format(self.portfolio, self.name, version, path)
-        print("Adding resource to release: {}".format(path))
-        self.replace_resources(path)
-        self.bucket.put_config(path, key)
-        self.replace_resources(path)
-
-    def replace_resources(self, path, version=None):
-        if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
-            if version is None:
-                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, self.version)
-            else:
-                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, version)
-
-            f = open(path, 'r')
-            filedata = f.read()
-            f.close()
-
-            newdata = filedata.replace(RESOURCES_KEY, directory)
-
-            f = open(path, 'w')
-            f.write(newdata)
-            f.close()
-
-    def revert_resources(self, path, version=None):
-        if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
-            if version is None:
-                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, self.version)
-            else:
-                directory = "{}/{}/{}/{}".format(self.bucket.name, self.portfolio, self.name, version)
-            f = open(path, 'r')
-            filedata = f.read()
-            f.close()
-
-            newdata = filedata.replace(directory, RESOURCES_KEY)
-
-            f = open(path, 'w')
-            f.write(newdata)
-            f.close()
 
     def tidy_versions(self):
         versions = self.get_all_versions()
