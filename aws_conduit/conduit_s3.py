@@ -2,9 +2,8 @@
 import os
 
 import attr
-import boto3
 import yaml
-
+from aws_conduit.aws import s3
 from aws_conduit.conduit_portfolio import ConduitPortfolio
 from aws_conduit.conduit_product import ConduitProduct
 
@@ -20,13 +19,11 @@ class ConduitS3(yaml.YAMLObject):
     yaml_tag = u'!Bucket'
     name = attr.ib()
     region = attr.ib()
-    s3_resource = boto3.resource('s3')
-    s3_client = boto3.client('s3')
 
     def exists(self):
         """Test if an S3 bucket exists."""
-        all_buckets = self.s3_client.list_buckets()
-        return bool(self.name in [bucket['Name'] for bucket in all_buckets['Buckets']])
+        all_buckets = s3.list_all_buckets()
+        return bool(self.name in [bucket['Name'] for bucket in all_buckets])
 
     def create(self):
         """
@@ -36,20 +33,11 @@ class ConduitS3(yaml.YAMLObject):
             name(str): The name of the S3 bucket to create.
             region(str): The region to create the S3 bucket in.
         """
-        bucket = self.s3_resource.Bucket(self.name)
-        bucket.create(
-            ACL='private',
-            CreateBucketConfiguration={
-                'LocationConstraint': self.region
-            }
-        )
-        bucket.Versioning().enable()
+        s3.create_bucket(self.name, self.region)
 
     def delete(self):
         """Delete an S3 bucket and all of its contents."""
-        bucket = self.s3_resource.Bucket(self.name)
-        bucket.objects.all().delete()
-        bucket.delete()
+        s3.delete_bucket(self.name)
 
     def file_exists(self, prefix):
         """
@@ -59,11 +47,7 @@ class ConduitS3(yaml.YAMLObject):
             prefix(str): The prefix of the file to test for.
             bucket_name(str): The name of the bucket to check in.
         """
-        bucket = self.s3_resource.Bucket(self.name)
-        response = bucket.objects.filter(
-            Prefix=prefix
-        )
-        return bool(response)
+        return bool(s3.get_file(self.name, prefix))
 
     def get_config(self, prefix):
         """
@@ -73,7 +57,7 @@ class ConduitS3(yaml.YAMLObject):
             prefix(str): The prefix of the yaml config.
         """
         file_name = prefix.split('/')[-1]
-        self.s3_client.download_file(self.name, prefix, os.path.join(LOCAL_STORE, file_name))
+        s3.download_file(self.name, prefix, os.path.join(LOCAL_STORE, file_name))
         config = yaml.safe_load(open(os.path.join(LOCAL_STORE, file_name)).read())
         return config
 
@@ -85,16 +69,14 @@ class ConduitS3(yaml.YAMLObject):
             content(dict): An object representnig some yaml configuration.
             prefix(str): The prefix to save the configuration to.
         """
-        obj = self.s3_resource.Object(self.name, prefix)
         if isinstance(content, dict):
             file_name = prefix.split('/')[-1]
             print("Uploading {} to {}...".format(file_name, self.name))
             open(os.path.join(LOCAL_STORE, file_name), "w+").write(yaml.dump(content, default_flow_style=False))
-            obj.upload_file(os.path.join(LOCAL_STORE, file_name))
         else:
             print("Uploading {} to {}...".format(content, self.name))
-            obj.upload_file(content)
-        return obj.version_id
+            file_name = content
+        s3.upload_file(self.name, prefix, os.path.join(LOCAL_STORE, file_name))
 
     def get_url(self):
         """Get the https url for this S3 bucket."""

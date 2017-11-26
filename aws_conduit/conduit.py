@@ -5,14 +5,12 @@ import subprocess
 
 import boto3
 import yaml
-
 from aws_conduit import conduit_factory as factory
 from aws_conduit import helper
+from aws_conduit.aws import service_catalog
 from aws_conduit.helper import inject_config
 
 CONFIG_PREFIX = 'conduit.yaml'
-
-ROW_FORMAT = "{:<30}" * 3
 
 
 def configure():
@@ -34,8 +32,12 @@ def sync(config=None):
     print("Ensuring Conduit is up to date...")
     if 'portfolios' in config:
         for portfolio in config['portfolios']:
-            print("Associating conduit with {}".format(portfolio.name))
-            portfolio.associate_conduit(account_id)
+            if portfolio.exists():
+                print("Associating conduit with {}".format(portfolio.name))
+                portfolio.associate_conduit(account_id)
+            else:
+                print("Portfolio no longer exists!")
+                config['portfolios'].remove(portfolio)
 
 
 @inject_config
@@ -115,21 +117,7 @@ def delete_portfolio(portfolio_id, config=None):
 def list_portfolios(token=None):
     print(ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)
-    _list_all_portfolios()
-
-
-def _list_all_portfolios(token=None):
-    service_catalog = boto3.client('servicecatalog')
-    if token is not None:
-        response = service_catalog.list_portfolios(
-            PageToken=token
-        )
-    else:
-        response = service_catalog.list_portfolios()
-    for portfolio in response['PortfolioDetails']:
-        print(ROW_FORMAT.format(portfolio['DisplayName'], portfolio['Id'], portfolio['Description']))
-    if 'NextPageToken' in response:
-        _list_all_portfolios(token=response['NextPageToken'])
+    service_catalog.list_all_portfolios()
 
 
 @inject_config
@@ -228,17 +216,10 @@ def associate_product_with_portfolio(product_id, portfolio_id, config=None):
 
     bucket = configure()
     print("Associating product with portfolio...")
-
-    client = boto3.client('servicecatalog')
-    client.associate_product_with_portfolio(
-        ProductId=product_id,
-        PortfolioId=portfolio_id
-    )
-
+    service_catalog.associate(product_id, portfolio_id)
     print("Association successful...")
     print("Finding product by id...")
     product = factory.product_by_id(product_id, bucket)
-
     print("Reflecting changes in Conduit config...")
     portfolio.products.append(product)
     product.portfolio = portfolio.name
@@ -265,22 +246,7 @@ def provision_product(product_id, product_name, name, config=None):
 def list_products():
     print(ROW_FORMAT.format("Name", "Id", "Description"))
     print("----------" * 9)
-    _list_all_products()
-
-
-def _list_all_products(token=None):
-    service_catalog = boto3.client('servicecatalog')
-    if token is not None:
-        response = service_catalog.search_products_as_admin(
-            PageToken=token
-        )
-    else:
-        response = service_catalog.search_products_as_admin()
-    for product in response['ProductViewDetails']:
-        summary = product['ProductViewSummary']
-        print(ROW_FORMAT.format(summary['Name'], summary['ProductId'], summary['ShortDescription']))
-    if 'NextPageToken' in response:
-        _list_all_portfolios(token=response['NextPageToken'])
+    service_catalog.list_all_products()
 
 
 @inject_config
@@ -303,8 +269,6 @@ def set_default_support_config(description=None, email=None, url=None, config=No
         support['url'] = url
     config['support'] = support
     print("Writing new support configuration...")
-
-
 
 
 @inject_config
@@ -352,29 +316,16 @@ def provision_product_build(product_name, name, config=None):
 
 def _provision(product, name):
     version_id = product.get_version_id()
-    client = boto3.client('servicecatalog')
-    launch_paths = client.list_launch_paths(
-        ProductId=product.product_id,
-    )
+    launch_paths = service_catalog.get_all_launch_paths(product.product_id)
     print("Getting launch path...")
-    if launch_paths['LaunchPathSummaries']:
-        launch_path = launch_paths['LaunchPathSummaries'][0]['Id']
-        response = client.describe_provisioning_parameters(
-            ProductId=product.product_id,
-            ProvisioningArtifactId=version_id,
-            PathId=launch_path
-        )
+    if launch_paths:
+        launch_path = launch_paths[0]['Id']
         print("Getting input parameters...")
+        provisioning_params = service_catalog.get_provisioning_parameters(product.product_id,
+                                                                          version_id,
+                                                                          launch_path)
         params = []
-        # conduit-config-977855701381/andover-ci/product-stack/0.0.0+build.6
-        params.append(dict(
-            Key="ConduitStackKey",
-            Value="{}/{}/{}/{}".format(product.bucket.name,
-                                       product.portfolio,
-                                       product.name,
-                                       product.version)
-        ))
-        for param in response['ProvisioningArtifactParameters']:
+        for param in provisioning_params:
             if param['ParameterKey'] != "ConduitStackKey":
                 if 'DefaultValue' in param:
                     input_value = input('{} (Default: {}): '.format(param['ParameterKey'],

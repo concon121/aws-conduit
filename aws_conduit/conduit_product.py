@@ -1,13 +1,10 @@
-import fileinput
 import json
-from datetime import datetime
-
-import boto3
-import yaml
 
 import attr
 import semver
+import yaml
 from aws_conduit import conduit_factory as factory
+from aws_conduit.aws import s3, service_catalog
 
 RESOURCES_KEY = "__resources__"
 
@@ -28,7 +25,6 @@ class ConduitProduct(yaml.YAMLObject):
     version = attr.ib(default="0.0.0")
     provisioned = attr.ib(default=[])
     role = attr.ib(default=None)
-    service_catalog = boto3.client('servicecatalog')
 
     def _add_initial_template(self):
         template = dict(
@@ -60,27 +56,8 @@ class ConduitProduct(yaml.YAMLObject):
             email = support['email']
         if 'url' in support:
             url = support['url']
-        create_response = self.service_catalog.create_product(
-            Name=self.name,
-            Owner=self.owner,
-            Description=self.description,
-            Distributor=self.owner,
-            SupportDescription=description,
-            SupportEmail=email,
-            SupportUrl=url,
-            ProductType='CLOUD_FORMATION_TEMPLATE',
-            Tags=tags,
-            ProvisioningArtifactParameters={
-                'Name': self.version,
-                'Description': 'Initial product creation.',
-                'Info': {
-                    'LoadTemplateFromURL': self.template_location
-                },
-                'Type': 'CLOUD_FORMATION_TEMPLATE'
-            },
-        )
+        create_response = service_catalog.create_product(self, email, url, description, [], self.template_location)
         self.product_id = create_response['ProductViewDetail']['ProductViewSummary']['ProductId']
-        # self.create_role()
 
     def create_role(self, name):
         print(self.role)
@@ -95,10 +72,7 @@ class ConduitProduct(yaml.YAMLObject):
     def add_to_portfolio(self, portfolio_id):
         # if not self.product_id:
         self.set_product_id()
-        self.service_catalog.associate_product_with_portfolio(
-            ProductId=self.product_id,
-            PortfolioId=portfolio_id
-        )
+        service_catalog.associate(self.product_id, portfolio_id)
 
     def set_product_id(self):
         if self.product_id is None:
@@ -106,13 +80,7 @@ class ConduitProduct(yaml.YAMLObject):
             self.product_id = summary['ProductId']
 
     def get_summary(self):
-        response = self.service_catalog.search_products_as_admin(
-            Filters={
-                'FullTextSearch': [
-                    self.name,
-                ]
-            }
-        )
+        response = service_catalog.search(self.name)
         if 'ProductViewDetails' in response:
             for item in response['ProductViewDetails']:
                 if item['ProductViewSummary']:
@@ -148,38 +116,20 @@ class ConduitProduct(yaml.YAMLObject):
             email = support['email']
         if 'url' in support:
             url = support['url']
-        self.service_catalog.update_product(
-            Id=self.product_id,
-            Name=self.name,
-            Owner=self.owner,
-            Description=self.description,
-            Distributor=self.owner,
-            SupportDescription=description,
-            SupportEmail=email,
-            SupportUrl=url,
-        )
+        service_catalog.update_product(self.product_id,
+                                       self.name,
+                                       self.owner,
+                                       self.description,
+                                       description,
+                                       email,
+                                       url)
 
     def disassociate(self, portfolio):
-        self.service_catalog.disassociate_product_from_portfolio(
-            ProductId=self.product_id,
-            PortfolioId=portfolio
-        )
+        service_catalog.disassociate(self.product_id, portfolio)
 
-    def get_all_portfolios(self, token=None):
+    def get_all_portfolios(self):
         self.set_product_id()
-        if token:
-            response = self.service_catalog.list_portfolios_for_product(
-                ProductId=self.product_id,
-                PageToken=token,
-            )
-        else:
-            response = self.service_catalog.list_portfolios_for_product(
-                ProductId=self.product_id
-            )
-        portfolios = [item['Id'] for item in response['PortfolioDetails']]
-        if 'NextPageToken' in response:
-            portfolios = portfolios + self.get_all_portfolios(token=response['NextPageToken'])
-        return portfolios
+        return service_catalog.list_portfolios_for_product(self.product_id)
 
     def release(self, release_type, local_template, current_version):
         product_version = current_version
@@ -200,18 +150,7 @@ class ConduitProduct(yaml.YAMLObject):
         self.revert_resources(local_template, version=product_version)
         template_url = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, self.name, self.cfn_type)
         print("Creating new version to template: {}".format(template_url))
-        self.service_catalog.create_provisioning_artifact(
-            ProductId=self.product_id,
-            Parameters={
-                'Name': product_version,
-                'Description': 'Incremental build; Not production ready!',
-                'Info': {
-                    'LoadTemplateFromURL': template_url
-                },
-                'Type': 'CLOUD_FORMATION_TEMPLATE'
-            },
-            IdempotencyToken='string'
-        )
+        service_catalog.new_version(self.product_id, product_version, template_url)
         self.version = product_version
         print("Released new product version: {}".format(product_version))
 
@@ -270,27 +209,12 @@ class ConduitProduct(yaml.YAMLObject):
 
     def delete_version(self, version_name, version_id):
         print("Deleting version: {}".format(version_name))
-        self.service_catalog.delete_provisioning_artifact(
-            ProductId=self.product_id,
-            ProvisioningArtifactId=version_id
-        )
-        key = "{}/{}/{}".format(self.portfolio, self.name, version_name)
-
-        s3 = self.bucket.s3_resource
-        objects_to_delete = s3.meta.client.list_objects(Bucket=self.bucket.name, Prefix=key)
-
-        delete_keys = {'Objects': []}
-        delete_keys['Objects'] = [{'Key': k} for k in [obj['Key'] for obj in objects_to_delete.get('Contents', [])]]
-
-        if delete_keys['Objects']:
-            print("Deleting keys: {}".format(delete_keys))
-            s3.meta.client.delete_objects(Bucket=self.bucket.name, Delete=delete_keys)
+        service_catalog.delete_version(self.product_id, version_id)
+        prefix = "{}/{}/{}".format(self.portfolio, self.name, version_name)
+        s3.delete_folder(self.bucket.name, prefix)
 
     def get_all_versions(self):
-        response = self.service_catalog.list_provisioning_artifacts(
-            ProductId=self.product_id
-        )
-        return response['ProvisioningArtifactDetails']
+        service_catalog.list_all_versions(self.product_id)
 
     def get_last_version(self):
         versions = self.get_all_versions()
@@ -310,58 +234,24 @@ class ConduitProduct(yaml.YAMLObject):
 
     def provision(self, params, name):
         servicecatalog = self._get_assumed_conduit_servicecatalog()
-        is_provisioned = self.determine_if_provisioned(servicecatalog, name)
+        is_provisioned = service_catalog.is_provisioned(name)
         if is_provisioned:
             print("Updating now...")
-            response = servicecatalog.update_provisioned_product(
-                ProvisionedProductName=name,
-                ProductId=self.product_id,
-                ProvisioningArtifactId=self.get_version_id(),
-                ProvisioningParameters=params
-            )
+            service_catalog.update_provisioned(servicecatalog, self, name, params)
             print("Update success!")
         else:
             print("Provisioning now...")
-            response = servicecatalog.provision_product(
-                ProductId=self.product_id,
-                ProvisioningArtifactId=self.get_version_id(),
-                ProvisionedProductName=name,
-                ProvisioningParameters=params
-            )
+            service_catalog.provision(servicecatalog, self, name, params)
             print("Provision success!")
 
     def terminate(self, name):
         servicecatalog = self._get_assumed_conduit_servicecatalog()
-        is_provisioned = self.determine_if_provisioned(servicecatalog, name)
+        is_provisioned = service_catalog.is_provisioned(name)
         if is_provisioned:
             print("Terminating now...")
-            response = servicecatalog.terminate_provisioned_product(
-                ProvisionedProductName=name,
-                IgnoreErrors=False
-            )
+            service_catalog.terminate_provisioned(servicecatalog, name)
         else:
             print("Artifact is not provisioned.")
-
-    def determine_if_provisioned(self, servicecatalog, name, token=None):
-        if token:
-            response = servicecatalog.scan_provisioned_products(
-                PageToken='string'
-            )
-        else:
-            response = self.service_catalog.scan_provisioned_products(
-                AccessLevelFilter={
-                    'Key': 'Account',
-                    'Value': 'self'
-                }
-            )
-        for product in response['ProvisionedProducts']:
-            print(product)
-            if product['Name'] == name:
-                return True
-        if 'NextPageToken' in response:
-            return self.determine_if_provisioned(servicecatalog, name, token=response['NextPageToken'])
-        else:
-            return False
 
     def _get_assumed_conduit_servicecatalog(self):
         sts = boto3.client('sts')

@@ -1,10 +1,13 @@
 portfolio: "test-portfolio"
-product: "groovy-test-product"
-cfn:
-  template: "TestProduct.yaml"
-  type: "yaml"
-deployProfile:
-  - actions:
-      - "s3:*"
-    resources:
-      - "*"
+products:
+  - name: "groovy-test-product"
+    build:
+      - echo "This is a build step!"
+    cfn:
+      template: "TestProduct.yaml"
+      type: "yaml"
+    deployProfile:
+      - actions:
+        - "s3:*"
+        resources:
+        - "*"

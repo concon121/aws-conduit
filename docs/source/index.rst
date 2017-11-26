@@ -4,5 +4,7 @@ AWS Conduit
 Product management for AWS Service Catalog.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Documentation
+
+   modules

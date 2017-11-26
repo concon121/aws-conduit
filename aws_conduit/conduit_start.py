@@ -1,9 +1,8 @@
-import json
 from datetime import datetime
 
 import attr
-import boto3
 from aws_conduit import conduit_factory as factory
+from aws_conduit.aws import iam
 
 BUCKET_PREFIX = 'conduit-config-'
 CONFIG_PREFIX = 'conduit.yaml'
@@ -25,34 +24,8 @@ class ConduitStart(object):
         return bucket
 
     def create_iam_role(self):
-        iam = boto3.client('iam')
-        response = iam.list_roles(
-            PathPrefix='/conduit/'
-        )
-        if not response['Roles']:
+        response = iam.list_roles('/conduit/')
+        if not response:
             print('Setting up IAM role...')
-            basic_role_policy = {
-                'Statement': [
-                    {
-                        'Principal': {
-                            'AWS': self.account_id
-                        },
-                        'Effect': 'Allow',
-                        'Action': ['sts:AssumeRole']
-                    },
-                ]
-            }
-            iam.create_role(
-                Path='/conduit/',
-                RoleName='conduit-provisioner-role',
-                AssumeRolePolicyDocument=json.dumps(basic_role_policy),
-                Description='Deploy role for the Conduit automation tool'
-            )
-            iam.attach_role_policy(
-                RoleName='conduit-provisioner-role',
-                PolicyArn='arn:aws:iam::aws:policy/ServiceCatalogAdminFullAccess'
-            )
-            iam.attach_role_policy(
-                RoleName='conduit-provisioner-role',
-                PolicyArn='arn:aws:iam::aws:policy/ServiceCatalogEndUserAccess'
-            )
+            iam.add_policy('conduit-provisioner-role', 'ServiceCatalogAdminFullAccess')
+            iam.add_policy('conduit-provisioner-role', 'ServiceCatalogEndUserAccess')

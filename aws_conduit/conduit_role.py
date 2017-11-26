@@ -1,9 +1,7 @@
-import json
-
+import attr
 import boto3
 import yaml
-
-import attr
+from aws_conduit.aws import iam
 
 
 @attr.s
@@ -21,50 +19,20 @@ class ConduitRole(yaml.YAMLObject):
         self._find_role()
         if self.role_arn is None:
             print('Creating role: {}'.format(self.name))
-            role_policy = {
-                'Statement': [
-                    {
-                        'Principal': {
-                            'Service': 'servicecatalog.amazonaws.com'
-                        },
-                        'Effect': 'Allow',
-                        'Action': ['sts:AssumeRole']
-                    },
-                ]
-            }
-            response = self.iam.create_role(
-                Path='/conduit/',
-                RoleName=self.name,
-                AssumeRolePolicyDocument=json.dumps(role_policy),
-                Description='Conduit deploy role.'
-            )
-            self.role_id = response['Role']['RoleId']
-            self.role_arn = response['Role']['Arn']
+            role = iam.create_role(self.name, 'Conduit deploy role.')
+            self.role_id = role['RoleId']
+            self.role_arn = role['Arn']
 
     def update_policy(self, policy):
         print('Updating policy for IAM role: {}'.format(self.name))
-        self.iam.put_role_policy(
-            RoleName=self.name,
-            PolicyName='deployer-policy',
-            PolicyDocument=json.dumps(policy)
-        )
+        iam.put_role_policy(self.name, 'deployer-policy', policy)
 
-    def _find_role(self, token=None):
+    def _find_role(self):
         if self.role_arn is None:
-            if token is None:
-                response = self.iam.list_roles(
-                    PathPrefix='/conduit/'
-                )
-            else:
-                response = self.iam.list_roles(
-                    PathPrefix='/conduit/',
-                    Marker=token
-                )
-            for role in response['Roles']:
+            response = iam.list_roles('/conduit/')
+            for role in response:
                 if role['RoleName'] == self.name:
                     print('Syncing role...')
                     self.role_id = role['RoleId']
                     self.role_arn = role['Arn']
                     break
-            if 'Marker' in response:
-                self._find_role(token=response['Marker'])
