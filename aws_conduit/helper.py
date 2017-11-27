@@ -154,8 +154,12 @@ def next_version(release_type, current_version):
 
 
 def put_resource(path, bucket, portfolio, product, version, environment='core'):
-    key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
-    directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
+    if environment is not None:
+        key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
+        directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
+    else:
+        key = "{}/{}/{}/{}".format(portfolio, product, version, path)
+        directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
     print("Adding resource to release: {}".format(path))
     replace_resources(directory, path=path)
     bucket.put_resource(path, key)
@@ -165,7 +169,6 @@ def put_resource(path, bucket, portfolio, product, version, environment='core'):
 def read_write(function):
 
     def wrapper(*args, **kwargs):
-        print(args)
         if 'path' in kwargs:
             if kwargs['path'].endswith('yaml') or kwargs['path'].endswith('yml') or kwargs['path'].endswith('json'):
                 f = open(kwargs['path'], 'r')

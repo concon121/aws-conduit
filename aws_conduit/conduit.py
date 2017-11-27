@@ -278,24 +278,22 @@ def build(action):
             for step in product_spec['build']:
                 subprocess.call(step, env={'STAGE': 'core'}, shell=True)
         if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
-            _service_catalog_build(action, spec, product_spec)
+            _service_catalog_build(action, product_spec)
         else:
             _s3_build(action, product_spec)
 
 
 @inject_config
-def _service_catalog_build(action, spec, product_spec, config=None):
+def _service_catalog_build(action, product_spec, config=None):
     result = helper.find_build_product(product_spec, config)
     if result['product'] is None:
         raise ValueError('Product was not found in config!')
     product = result['product']
     print(product_spec)
     update_iam_role(product_spec)
-    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=spec['portfolio']))
+    product.add_resources(product_spec)
+    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=product_spec['portfolio']))
     product.release(action, product_spec['artifact'], product.version)
-    if 'associatedResources' in product_spec:
-        for resource in product_spec['associatedResources']:
-            product.put_resource(resource)
     if action != 'build':
         product.tidy_versions()
 

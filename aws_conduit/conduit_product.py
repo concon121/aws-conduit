@@ -1,10 +1,11 @@
 import json
 
-import yaml
-
 import attr
+import boto3
 import semver
+import yaml
 from aws_conduit import conduit_factory as factory
+from aws_conduit import helper
 from aws_conduit.aws import s3, service_catalog
 
 
@@ -24,6 +25,7 @@ class ConduitProduct(yaml.YAMLObject):
     version = attr.ib(default="0.0.0")
     provisioned = attr.ib(default=[])
     role = attr.ib(default=None)
+    resources = attr.ib(default=[])
 
     def _add_initial_template(self):
         template = dict(
@@ -144,14 +146,20 @@ class ConduitProduct(yaml.YAMLObject):
         self.release_new_build(local_template, product_version)
 
     def release_new_build(self, local_template, product_version):
-        self.replace_resources(local_template, version=product_version)
-        self.bucket.put_config(local_template, "{}/{}/{}/{}.{}".format(self.portfolio, self.name, product_version, self.name, self.cfn_type))
-        self.revert_resources(local_template, version=product_version)
-        template_url = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, self.name, self.cfn_type)
+        helper.put_resource(local_template, self.bucket, self.portfolio, self.name, product_version, environment=None)
+        for resource in self.resources:
+            helper.put_resource(resource, self.bucket, self.portfolio, self.name, product_version, environment=None)
+        template_url = "{}/{}/{}/{}/{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, local_template)
         print("Creating new version to template: {}".format(template_url))
         service_catalog.new_version(self.product_id, product_version, template_url)
         self.version = product_version
         print("Released new product version: {}".format(product_version))
+
+    def add_resources(self, product_spec):
+        self.resources = []
+        if 'associatedResources' in product_spec:
+            for resource in product_spec['associatedResources']:
+                self.resources.append(resource)
 
     def tidy_versions(self):
         versions = self.get_all_versions()
@@ -227,12 +235,9 @@ class ConduitProduct(yaml.YAMLObject):
 
     def create_deployer_launch_constraint(self, portfolio):
         print("Creating Launch configuration...")
-        response = self.service_catalog.list_constraints_for_portfolio(
-            PortfolioId=portfolio.portfolio_id,
-            ProductId=self.product_id
-        )
+        response = service_catalog.list_product_constraints(portfolio.portfolio_id, self.product_id)
         exists = False
-        for item in response['ConstraintDetails']:
+        for item in response:
             if item['Type'] == 'LAUNCH':
                 print("Launch configuration exists, nothing to do.")
                 exists = True
@@ -241,10 +246,4 @@ class ConduitProduct(yaml.YAMLObject):
             params = dict(
                 RoleArn=self.role.role_arn
             )
-            response = self.service_catalog.create_constraint(
-                PortfolioId=portfolio.portfolio_id,
-                ProductId=self.product_id,
-                Parameters=json.dumps(params),
-                Type='LAUNCH',
-                Description='Launch configuration for {}'.format(self.name)
-            )
+            service_catalog.create_constraint(portfolio.portfolio_id, self.product_id, params, self.name)

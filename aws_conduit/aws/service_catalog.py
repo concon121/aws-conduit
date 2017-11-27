@@ -1,3 +1,5 @@
+import json
+
 import boto3
 
 SERVICE_CATALOG = boto3.client('servicecatalog')
@@ -12,9 +14,19 @@ def associate(product_id, portfolio_id):
 
 
 def disassociate(product_id, portfolio):
-    self.service_catalog.disassociate_product_from_portfolio(
+    SERVICE_CATALOG.disassociate_product_from_portfolio(
         ProductId=product_id,
         PortfolioId=portfolio
+    )
+
+
+def create_constraint(portfolio_id, product_id, params, name):
+    SERVICE_CATALOG.create_constraint(
+        PortfolioId=portfolio_id,
+        ProductId=product_id,
+        Parameters=json.dumps(params),
+        Type='LAUNCH',
+        Description='Launch configuration for {}'.format(name)
     )
 
 
@@ -84,6 +96,14 @@ def list_all_products(token=None):
         list_all_products(token=response['NextPageToken'])
 
 
+def list_product_constraints(portfolio_id, product_id):
+    response = SERVICE_CATALOG.list_constraints_for_portfolio(
+        PortfolioId=portfolio_id,
+        ProductId=product_id
+    )
+    return response['ConstraintDetails']
+
+
 def get_provisioning_parameters(product_id, version_id, launch_path):
     response = SERVICE_CATALOG.describe_provisioning_parameters(
         ProductId=product_id,
@@ -139,6 +159,7 @@ def list_all_versions(product_id):
 
 
 def new_version(product_id, name, template_url):
+    print(template_url)
     SERVICE_CATALOG.create_provisioning_artifact(
         ProductId=product_id,
         Parameters={
@@ -148,8 +169,7 @@ def new_version(product_id, name, template_url):
                 'LoadTemplateFromURL': template_url
             },
             'Type': 'CLOUD_FORMATION_TEMPLATE'
-        },
-        IdempotencyToken='string'
+        }
     )
 
 
