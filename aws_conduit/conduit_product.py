@@ -1,8 +1,9 @@
 import json
 
+import yaml
+
 import attr
 import semver
-import yaml
 from aws_conduit import conduit_factory as factory
 from aws_conduit.aws import s3, service_catalog
 

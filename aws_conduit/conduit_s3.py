@@ -78,6 +78,17 @@ class ConduitS3(yaml.YAMLObject):
             file_name = content
         s3.upload_file(self.name, prefix, os.path.join(LOCAL_STORE, file_name))
 
+    def put_resource(self, path, prefix):
+        """
+        Put some yaml content into an S3 bucket.
+
+        Args:
+            path(dict): An object representnig some yaml configuration.
+            prefix(str): The prefix to save the configuration to.
+        """
+        print("Uploading {} to {}...".format(path, self.name))
+        s3.upload_file(self.name, prefix, path)
+
     def get_url(self):
         """Get the https url for this S3 bucket."""
         return "https://s3.{}.amazonaws.com/{}".format(self.region, self.name)

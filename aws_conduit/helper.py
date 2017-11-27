@@ -1,6 +1,7 @@
 import boto3
 import semver
 from aws_conduit import conduit_factory as factory
+from aws_conduit.conduit_portfolio import ConduitPortfolio
 
 SESSION = boto3.session.Session()
 IAM = boto3.client('iam')
@@ -73,21 +74,29 @@ def inject_config(function):
     return wrapper
 
 
-def find_build_product(to_find_product, spec, config):
+def find_build_product(spec, config):
     portfolio = None
     product = None
     for port in config['portfolios']:
-        if port.name == spec['portfolio']:
-            portfolio = port
-            for prod in portfolio.products:
-                if prod.name == to_find_product:
-                    product = prod
-                    break
-    if portfolio is None or not portfolio.exists():
-        raise ValueError("The specified portfolio does not exist: {}".format(to_find_product))
-    elif product is None or not product.exists():
-        raise ValueError("The product {} does not exist in portfolio {}".format(to_find_product, spec['portfolio']))
-    return product
+        if isinstance(port, ConduitPortfolio):
+            if port.name == spec['portfolio']:
+                portfolio = port
+                for prod in portfolio.products:
+                    if prod.name == spec['product']:
+                        product = prod
+                        break
+        else:
+            if port['name'] == spec['portfolio']:
+                portfolio = port
+                for prod in portfolio['products']:
+                    if prod['name'] == spec['product']:
+                        product = prod
+                        break
+
+    return dict(
+        product=product,
+        portfolio=portfolio
+    )
 
 
 def find_provisioned_build_product(to_find_product, spec, config):
@@ -111,25 +120,24 @@ def find_provisioned_build_product(to_find_product, spec, config):
 
 
 def find_s3_build_product(spec, config):
-    portfolio = None
     default_product = dict(
         name=spec['product'],
         currentVersion='0.0.0',
         nextVersion='0.0.0'
     )
-    product = default_product
-    for port in config['portfolios']:
-        if port.name == spec['portfolio']:
-            portfolio = port
-            for prod in portfolio['products']:
-                if prod['name'] == spec['product']:
-                    return prod
-            portfolio['products'].append(default_product)
-    config['portfolios'].append(dict(
-        name=spec['portfolio'],
-        products=[default_product]
-    ))
-    return product
+    result = find_build_product(spec, config)
+    if result['portfolio'] is None:
+        result['portfolio'] = dict(
+            name=spec['portfolio'],
+            products=[default_product]
+        )
+        result['product'] = default_product
+        config['portfolios'].append(result['portfolio'])
+    elif result['product'] is None:
+        result['product'] = default_product
+        result['portfolio']['products'].append(default_product)
+
+    return result
 
 
 def next_version(release_type, current_version):
@@ -149,26 +157,15 @@ def put_resource(path, bucket, portfolio, product, version, environment='core'):
     key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
     directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
     print("Adding resource to release: {}".format(path))
-    replace_resources(path, directory, version)
-    bucket.put_config(path, key)
-    replace_resources(path, directory, version)
-
-
-@read_write
-def replace_resources(path, directory, version=None, file_data=None):
-    if file_data is not None:
-        return file_data.replace(RESOURCES_KEY, directory)
-
-
-@read_write
-def revert_resources(path, directory, file_data=None):
-    if file_data is not None:
-        return file_data.replace(directory, RESOURCES_KEY)
+    replace_resources(directory, path=path)
+    bucket.put_resource(path, key)
+    revert_resources(directory, path=path)
 
 
 def read_write(function):
 
     def wrapper(*args, **kwargs):
+        print(args)
         if 'path' in kwargs:
             if kwargs['path'].endswith('yaml') or kwargs['path'].endswith('yml') or kwargs['path'].endswith('json'):
                 f = open(kwargs['path'], 'r')
@@ -180,3 +177,39 @@ def read_write(function):
                     f.write(newdata)
                     f.close()
     return wrapper
+
+
+@read_write
+def replace_resources(directory, path=None, file_data=None):
+    if file_data is not None:
+        print("Replacing in {}".format(path))
+        return file_data.replace(RESOURCES_KEY, directory)
+
+
+@read_write
+def revert_resources(directory, path=None, file_data=None):
+    if file_data is not None:
+        print("Replacing in {}".format(path))
+        return file_data.replace(directory, RESOURCES_KEY)
+
+
+def put_sls_resource(path, bucket, portfolio, product, version, sls_package, environment='core'):
+    key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
+    replace_sls_resources(key, bucket.name, sls_package, environment, path=path)
+    print("Adding sls resource to release: {}".format(path))
+    bucket.put_resource(path, key)
+    revert_sls_resources(key, bucket.name, sls_package, environment, path=path)
+
+
+@read_write
+def replace_sls_resources(key, bucket, sls_package, environment, path=None, file_data=None):
+    if file_data is not None:
+        print("Replacing in {}".format(path))
+        return file_data.replace(sls_package['artifactDirectoryName'], key).replace(sls_package['bucket'], bucket).replace('${STAGE}', environment)
+
+
+@read_write
+def revert_sls_resources(key, bucket, sls_package, environment, path=None, file_data=None):
+    if file_data is not None:
+        print("Reverting in {}".format(path))
+        return file_data.replace(key, sls_package['artifactDirectoryName']).replace(bucket, sls_package['bucket']).replace(environment, '${STAGE}')

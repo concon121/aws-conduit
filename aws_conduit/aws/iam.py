@@ -2,6 +2,7 @@
 import json
 
 import boto3
+from aws_conduit import helper
 
 IAM = boto3.client('iam')
 
@@ -9,7 +10,7 @@ BASIC_POLICY = {
     'Statement': [
         {
             'Principal': {
-                'AWS': self.account_id
+                'AWS': helper.get_account_id()
             },
             'Effect': 'Allow',
             'Action': ['sts:AssumeRole']

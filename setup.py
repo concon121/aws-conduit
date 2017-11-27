@@ -6,7 +6,7 @@ with open('requirements.txt') as f:
 setup(
     include_package_data=True,
     name='aws_conduit',
-    packages=['aws_conduit'],
+    packages=['aws_conduit', 'aws_conduit.aws'],
     version='0.0.3',
     description='Product management for AWS Service Catalog.',
     author='Connor Bray',

@@ -1,4 +1,5 @@
 """A conduit for CI Pipelines in AWS!"""
+import json
 import subprocess
 
 import yaml
@@ -271,12 +272,12 @@ def set_default_support_config(description=None, email=None, url=None, config=No
 def build(action):
     print("Releasing a new build version...")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
-    for product_spec in spec['products']:
+    for product_spec in spec['inventory']:
         # Perform Build Steps
         if 'build' in product_spec:
             for step in product_spec['build']:
-                subprocess.call(step, shell=True)
-        if spec['serviceCatalog']:
+                subprocess.call(step, env={'STAGE': 'core'}, shell=True)
+        if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
             _service_catalog_build(action, spec, product_spec)
         else:
             _s3_build(action, product_spec)
@@ -284,7 +285,10 @@ def build(action):
 
 @inject_config
 def _service_catalog_build(action, spec, product_spec, config=None):
-    product = helper.find_build_product(product_spec['name'], spec, config)
+    result = helper.find_build_product(product_spec, config)
+    if result['product'] is None:
+        raise ValueError('Product was not found in config!')
+    product = result['product']
     print(product_spec)
     update_iam_role(product_spec)
     product.create_deployer_launch_constraint(helper.get_portfolio(config, name=spec['portfolio']))
@@ -297,16 +301,31 @@ def _service_catalog_build(action, spec, product_spec, config=None):
 
 
 @inject_config
-def _s3_build(action, spec, product_spec, config=None):
-    print(product_spec)
-    product = helper.find_s3_build_product(product_spec, config)
-    next_version = helper.next_version(action, product['current_version'])
+def _s3_build(action, product_spec, config=None):
+    result = helper.find_s3_build_product(product_spec, config)
+    next_version = helper.next_version(action, result['product']['nextVersion'])
+    result['product']['nextVersion'] = next_version
     start = factory.start()
     bucket = start.create_s3()
     helper.put_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+
+    sls_package = None
+
+    if 'sls' in product_spec and product_spec['sls'] is True:
+        sls_state = json.load(open('.serverless/serverless-state.json'))
+        sls_package = sls_state['package']
+        sls_package['bucket'] = sls_state['service']['provider']['deploymentBucketObject']['name']
+        print(sls_package)
+        helper.put_sls_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
+    else:
+        helper.put_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+
     if 'associatedResources' in product_spec:
         for resource in product_spec['associatedResources']:
-            helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
+            if 'sls' in product_spec and product_spec['sls'] is True:
+                helper.put_sls_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
+            else:
+                helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
     # if action != 'build':
     #    product.tidy_versions()
 
