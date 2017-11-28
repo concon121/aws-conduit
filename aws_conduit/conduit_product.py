@@ -233,7 +233,7 @@ class ConduitProduct(yaml.YAMLObject):
         )
         return servicecatalog
 
-    def create_deployer_launch_constraint(self, portfolio):
+    def create_deployer_launch_constraint(self, portfolio, role_name):
         print("Creating Launch configuration...")
         response = service_catalog.list_product_constraints(portfolio.portfolio_id, self.product_id)
         exists = False
@@ -243,7 +243,8 @@ class ConduitProduct(yaml.YAMLObject):
                 exists = True
                 break
         if not exists:
+            role_arn = "arn:aws:iam::{}:role/conduit/{}".format(helper.get_account_id(), role_name)
             params = dict(
-                RoleArn=self.role.role_arn
+                RoleArn=role_arn
             )
             service_catalog.create_constraint(portfolio.portfolio_id, self.product_id, params, self.name)

@@ -160,11 +160,14 @@ def list_all_versions(product_id):
 
 def new_version(product_id, name, template_url):
     print(template_url)
+    description = 'Release Candidate build increment'
+    if 'build' in name:
+        description = 'Incremental build; Not production ready!'
     SERVICE_CATALOG.create_provisioning_artifact(
         ProductId=product_id,
         Parameters={
             'Name': name,
-            'Description': 'Incremental build; Not production ready!',
+            'Description': description,
             'Info': {
                 'LoadTemplateFromURL': template_url
             },

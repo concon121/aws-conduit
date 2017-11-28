@@ -294,7 +294,7 @@ def _service_catalog_build(action, product_spec, config=None):
     print(product_spec)
     update_iam_role(product_spec)
     product.add_resources(product_spec)
-    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=product_spec['portfolio']))
+    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=product_spec['portfolio']), product_spec['roleName'])
     product.release(action, product_spec['artifact'], product.version)
     if action != 'build':
         product.tidy_versions()
@@ -334,9 +334,9 @@ def _s3_build(action, product_spec, config=None):
 @inject_config
 def package_portfolio(portfolio_name, environment, config=None):
     package = []
-    templates = helper.get_all_portfolio_artifacts(portfolio_name, config)
-    for template in templates:
-        params = cloudformation.list_parameters(template)
+    results = helper.get_all_portfolio_artifacts(portfolio_name, config)
+    for result in results:
+        params = cloudformation.list_parameters(result['template'])
         parameters = []
         for param in params:
             if param['ParameterKey'] == 'Environment':
@@ -353,8 +353,10 @@ def package_portfolio(portfolio_name, environment, config=None):
                     ParameterValue=value
                 ))
         package.append(dict(
-            template=template,
-            parameters=parameters
+            template=result['template'],
+            parameters=parameters,
+            product=result['product']
+
         ))
     print(json.dumps(package))
 
@@ -444,9 +446,11 @@ def update_iam_role(spec):
     try:
         if 'roleName' in spec:
             iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['product']))
+
         else:
             raise ValueError('A roleName must be specified for your product.')
     except:
+        iam.add_policy(spec['roleName'], 'ServiceCatalogEndUserFullAccess')
         print('Role probably already exists...')
 
     if 'deployProfile' in spec:

@@ -105,11 +105,17 @@ def get_all_portfolio_artifacts(portfolio_name, config):
         if isinstance(port, ConduitPortfolio):
             if port.name == portfolio_name:
                 for product in port.products:
-                    templates.append(product.template_location)
+                    templates.append(dict(
+                        template=product.template_location,
+                        product=product.name
+                    ))
         else:
             if port['name'] == portfolio_name:
                 for product in port['products']:
-                    templates.append(product['template_location'])
+                    templates.append(dict(
+                        template=product['template_location'],
+                        product=product['name']
+                    ))
     return templates
 
 
