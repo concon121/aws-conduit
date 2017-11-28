@@ -99,6 +99,20 @@ def find_build_product(spec, config):
     )
 
 
+def get_all_portfolio_artifacts(portfolio_name, config):
+    templates = []
+    for port in config['portfolios']:
+        if isinstance(port, ConduitPortfolio):
+            if port.name == portfolio_name:
+                for product in port.products:
+                    templates.append(product.template_location)
+        else:
+            if port['name'] == portfolio_name:
+                for product in port['products']:
+                    templates.append(product['template_location'])
+    return templates
+
+
 def find_provisioned_build_product(to_find_product, spec, config):
     portfolio = None
     product = None
@@ -164,6 +178,7 @@ def put_resource(path, bucket, portfolio, product, version, environment='core'):
     replace_resources(directory, path=path)
     bucket.put_resource(path, key)
     revert_resources(directory, path=path)
+    return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, path)
 
 
 def read_write(function):

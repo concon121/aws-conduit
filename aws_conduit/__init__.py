@@ -127,6 +127,8 @@ class Conduit(cmdln.Cmdln):
         else:
             print("{}: not a valid action for product".format(action))
 
+    @cmdln.option("-p", "--product",
+                  help="The name of the product to build.")
     def do_build(self, subcmd, opts, *action):
         """
         ${cmd_name}: Release a build from a conduitspec.yaml
@@ -141,16 +143,16 @@ class Conduit(cmdln.Cmdln):
         """
         if action and action[0] == 'major':
             print("Releasing new major version...")
-            conduit.build('major')
+            conduit.build('major', opts.product)
         elif action and action[0] == 'minor':
             print("Releasing new minor version...")
-            conduit.build('minor')
+            conduit.build('minor', opts.product)
         elif action and action[0] == 'patch':
             print("Release new patch version...")
-            conduit.build('patch')
+            conduit.build('patch', opts.product)
         else:
             print("Release new build version...")
-            conduit.build('build')
+            conduit.build('build', opts.product)
 
     @cmdln.option("-p", "--product",
                   help="The name of the product to provision.")
@@ -184,6 +186,13 @@ class Conduit(cmdln.Cmdln):
         ${cmd_option_list}
         """
         conduit.sync()
+
+    @cmdln.option("-p", "--portfolio",
+                  help="The name of the portfolio to package.")
+    @cmdln.option("-e", "--environment",
+                  help="The environment to package.")
+    def do_package(self, subcmd, opts):
+        conduit.package_portfolio(opts.portfolio, opts.environment)
 
 
 def main():

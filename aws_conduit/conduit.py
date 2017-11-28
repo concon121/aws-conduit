@@ -1,11 +1,12 @@
 """A conduit for CI Pipelines in AWS!"""
 import json
+import os
 import subprocess
 
 import yaml
 from aws_conduit import conduit_factory as factory
-from aws_conduit import helper
-from aws_conduit.aws import iam, service_catalog
+from aws_conduit import conduit_s3, helper
+from aws_conduit.aws import cloudformation, iam, service_catalog, ssm
 from aws_conduit.helper import inject_config
 
 CONFIG_PREFIX = 'conduit.yaml'
@@ -269,18 +270,19 @@ def set_default_support_config(description=None, email=None, url=None, config=No
     print("Writing new support configuration...")
 
 
-def build(action):
+def build(action, product):
     print("Releasing a new build version...")
     spec = yaml.safe_load(open('conduitspec.yaml').read())
     for product_spec in spec['inventory']:
-        # Perform Build Steps
-        if 'build' in product_spec:
-            for step in product_spec['build']:
-                subprocess.call(step, env={'STAGE': 'core'}, shell=True)
-        if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
-            _service_catalog_build(action, product_spec)
-        else:
-            _s3_build(action, product_spec)
+        if (product is not None and product_spec['product'] == product) or product is None:
+            # Perform Build Steps
+            if 'build' in product_spec:
+                for step in product_spec['build']:
+                    subprocess.call(step, env={'STAGE': 'core'}, shell=True)
+            if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
+                _service_catalog_build(action, product_spec)
+            else:
+                _s3_build(action, product_spec)
 
 
 @inject_config
@@ -305,7 +307,8 @@ def _s3_build(action, product_spec, config=None):
     result['product']['nextVersion'] = next_version
     start = factory.start()
     bucket = start.create_s3()
-    helper.put_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+    result['product']['template_location'] = helper.put_resource(
+        product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
 
     sls_package = None
 
@@ -314,9 +317,9 @@ def _s3_build(action, product_spec, config=None):
         sls_package = sls_state['package']
         sls_package['bucket'] = sls_state['service']['provider']['deploymentBucketObject']['name']
         print(sls_package)
-        helper.put_sls_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
+        helper.put_sls_resource(product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
     else:
-        helper.put_resource(product_spec['cfn']['template'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+        helper.put_resource(product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
 
     if 'associatedResources' in product_spec:
         for resource in product_spec['associatedResources']:
@@ -326,6 +329,45 @@ def _s3_build(action, product_spec, config=None):
                 helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
     # if action != 'build':
     #    product.tidy_versions()
+
+
+@inject_config
+def package_portfolio(portfolio_name, environment, config=None):
+    package = []
+    templates = helper.get_all_portfolio_artifacts(portfolio_name, config)
+    for template in templates:
+        params = cloudformation.list_parameters(template)
+        parameters = []
+        for param in params:
+            if param['ParameterKey'] == 'Environment':
+                parameters.append(dict(
+                    ParameterKey='Environment',
+                    ParameterValue=environment
+                ))
+            else:
+                value = ssm.get_param(param['ParameterKey'], environment)
+                if value is None:
+                    raise ValueError("No value for parameter: {}".format(param['ParameterKey']))
+                parameters.append(dict(
+                    ParameterKey=param['ParameterKey'],
+                    ParameterValue=value
+                ))
+        package.append(dict(
+            template=template,
+            parameters=parameters
+        ))
+    print(json.dumps(package))
+
+    start = factory.start()
+    bucket = start.create_s3()
+
+    file_name = '{}.json'.format(portfolio_name)
+    file_path = os.path.join(conduit_s3.LOCAL_STORE, file_name)
+    zip_name = '{}-{}.zip'.format(portfolio_name, environment)
+    zip_path = os.path.join(conduit_s3.LOCAL_STORE, zip_name)
+    open(file_path, "w+").write(json.dumps(package))
+    subprocess.call('cd {} && zip -r {} {}'.format(conduit_s3.LOCAL_STORE, zip_name, file_name), shell=True)
+    bucket.put_resource(zip_path, '{}/{}-{}.zip'.format(portfolio_name, portfolio_name, environment))
 
 
 @inject_config

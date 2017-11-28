@@ -4,8 +4,6 @@ import os
 import attr
 import yaml
 from aws_conduit.aws import s3
-from aws_conduit.conduit_portfolio import ConduitPortfolio
-from aws_conduit.conduit_product import ConduitProduct
 
 LOCAL_STORE = os.path.join(os.path.expanduser('~'), '.conduit')
 if not os.path.exists(LOCAL_STORE):
