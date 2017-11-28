@@ -114,7 +114,8 @@ def get_all_portfolio_artifacts(portfolio_name, config):
                 for product in port['products']:
                     templates.append(dict(
                         template=product['template_location'],
-                        product=product['name']
+                        product=product['name'],
+                        policy=product['policy']
                     ))
     return templates
 
@@ -218,17 +219,23 @@ def revert_resources(directory, path=None, file_data=None):
 
 
 def put_sls_resource(path, bucket, portfolio, product, version, sls_package, environment='core'):
-    key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
-    replace_sls_resources(key, bucket.name, sls_package, environment, path=path)
+    new_path = path
+    if '.serverless' in new_path:
+        new_path = new_path.replace('.serverless/', '')
+    directory = "{}/{}/{}/{}".format(portfolio, product, environment, version)
+    key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, new_path)
+    replace_sls_resources(directory, bucket.name, sls_package, environment, path=path)
     print("Adding sls resource to release: {}".format(path))
     bucket.put_resource(path, key)
-    revert_sls_resources(key, bucket.name, sls_package, environment, path=path)
+    revert_sls_resources(directory, bucket.name, sls_package, environment, path=path)
+    return "https://s3-{}.amazonaws.com/{}/{}/{}".format(get_region(), bucket.name, directory, new_path)
 
 
 @read_write
 def replace_sls_resources(key, bucket, sls_package, environment, path=None, file_data=None):
     if file_data is not None:
         print("Replacing in {}".format(path))
+        print("The key is: {}".format(key))
         return file_data.replace(sls_package['artifactDirectoryName'], key).replace(sls_package['bucket'], bucket).replace('${STAGE}', environment)
 
 
@@ -236,4 +243,5 @@ def replace_sls_resources(key, bucket, sls_package, environment, path=None, file
 def revert_sls_resources(key, bucket, sls_package, environment, path=None, file_data=None):
     if file_data is not None:
         print("Reverting in {}".format(path))
+        print("The key is: {}".format(key))
         return file_data.replace(key, sls_package['artifactDirectoryName']).replace(bucket, sls_package['bucket']).replace(environment, '${STAGE}')

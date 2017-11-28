@@ -278,7 +278,7 @@ def build(action, product):
             # Perform Build Steps
             if 'build' in product_spec:
                 for step in product_spec['build']:
-                    subprocess.call(step, env={'STAGE': 'core'}, shell=True)
+                    subprocess.call(step, shell=True)
             if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
                 _service_catalog_build(action, product_spec)
             else:
@@ -304,12 +304,10 @@ def _service_catalog_build(action, product_spec, config=None):
 def _s3_build(action, product_spec, config=None):
     result = helper.find_s3_build_product(product_spec, config)
     next_version = helper.next_version(action, result['product']['nextVersion'])
+    print("The next version is: {}".format(next_version))
     result['product']['nextVersion'] = next_version
     start = factory.start()
     bucket = start.create_s3()
-    result['product']['template_location'] = helper.put_resource(
-        product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
-
     sls_package = None
 
     if 'sls' in product_spec and product_spec['sls'] is True:
@@ -317,9 +315,26 @@ def _s3_build(action, product_spec, config=None):
         sls_package = sls_state['package']
         sls_package['bucket'] = sls_state['service']['provider']['deploymentBucketObject']['name']
         print(sls_package)
-        helper.put_sls_resource(product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
+        result['product']['template_location'] = helper.put_sls_resource(
+            product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
     else:
-        helper.put_resource(product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+        result['product']['template_location'] = helper.put_resource(
+            product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+
+    if 'deployProfile' in product_spec:
+        statements = []
+        policy = dict(
+            Version="2012-10-17",
+            Statement=statements
+        )
+        for entry in product_spec['deployProfile']:
+            statement = dict(
+                Effect="Allow",
+                Action=entry['actions'],
+                Resource=entry['resources']
+            )
+            statements.append(statement)
+        result['product']['policy'] = policy
 
     if 'associatedResources' in product_spec:
         for resource in product_spec['associatedResources']:
@@ -355,7 +370,8 @@ def package_portfolio(portfolio_name, environment, config=None):
         package.append(dict(
             template=result['template'],
             parameters=parameters,
-            product=result['product']
+            product=result['product'],
+            policy=result['policy']
 
         ))
     print(json.dumps(package))
@@ -469,5 +485,6 @@ def update_iam_role(spec):
             statements.append(statement)
 
         iam.put_role_policy(spec['roleName'], 'deploy-policy', policy)
+        return policy
     else:
         raise ValueError('No deploy profile.  Will not continute...')
