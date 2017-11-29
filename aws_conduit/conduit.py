@@ -337,13 +337,17 @@ def _s3_build(action, product_spec, config=None):
         result['product']['policy'] = policy
 
     if 'associatedResources' in product_spec:
-        for resource in product_spec['associatedResources']:
-            if 'sls' in product_spec and product_spec['sls'] is True:
-                helper.put_sls_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
-            else:
-                helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
-    # if action != 'build':
-    #    product.tidy_versions()
+        _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
+    if 'nestedStacks' in product_spec:
+        _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
+
+
+def _put_resources(resources, product_spec, bucket, next_version, sls_package):
+    for resource in resources:
+        if 'sls' in product_spec and product_spec['sls'] is True:
+            helper.put_sls_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
+        else:
+            helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
 
 
 @inject_config
