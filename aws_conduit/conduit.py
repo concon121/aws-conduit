@@ -360,19 +360,14 @@ def package_portfolio(portfolio_name, environment, config=None):
                     ParameterValue=environment
                 ))
             else:
-                value = ssm.get_param(param['ParameterKey'], environment)
-                if value is None:
-                    raise ValueError("No value for parameter: {}".format(param['ParameterKey']))
                 parameters.append(dict(
-                    ParameterKey=param['ParameterKey'],
-                    ParameterValue=value
+                    ParameterKey=param['ParameterKey']
                 ))
         package.append(dict(
             template=result['template'],
             parameters=parameters,
             product=result['product'],
             policy=result['policy']
-
         ))
     print(json.dumps(package))
 
