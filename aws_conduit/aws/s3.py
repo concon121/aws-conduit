@@ -21,6 +21,17 @@ def delete_bucket(name):
     bucket.delete()
 
 
+def get_sub_folders(name, prefix):
+    sub_folders = []
+    bucket = S3_RESOURCE.Bucket(name=name)
+    for obj in bucket.objects.filter(Prefix=prefix):
+        parts = obj.key.split("/")
+        parts.pop(-1)
+        folder = '/'.join(str(part) for part in parts)
+        sub_folders.append(folder)
+    return sub_folders
+
+
 def delete_folder(name, prefix):
     objects_to_delete = S3_RESOURCE.meta.client.list_objects(Bucket=name, Prefix=prefix)
     delete_keys = {'Objects': []}

@@ -3,10 +3,11 @@ import json
 import os
 import subprocess
 
+import semver
 import yaml
 from aws_conduit import conduit_factory as factory
 from aws_conduit import conduit_s3, helper
-from aws_conduit.aws import cloudformation, iam, service_catalog, ssm
+from aws_conduit.aws import cloudformation, iam, s3, service_catalog
 from aws_conduit.helper import inject_config
 
 CONFIG_PREFIX = 'conduit.yaml'
@@ -340,6 +341,20 @@ def _s3_build(action, product_spec, config=None):
         _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
     if 'nestedStacks' in product_spec:
         _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
+
+    if action != 'build':
+        _tidy_versions(result['portfolio']['name'], result['product']['name'], next_version, bucket)
+
+
+def _tidy_versions(portfolio, product, version, bucket):
+    versions = s3.get_sub_folders(bucket.name, "{}/{}/{}".format(portfolio, product, 'core'))
+    for item in versions:
+        this_version = item.split("/")[-1]
+        if ('+build' in this_version and
+                semver.compare(this_version, version) == -1):
+            prefix = "{}/{}/{}/{}".format(portfolio, product, 'core', this_version)
+            print("Tidying version: {}".format(prefix))
+            s3.delete_folder(bucket.name, prefix)
 
 
 def _put_resources(resources, product_spec, bucket, next_version, sls_package):
