@@ -178,7 +178,7 @@ class ConduitProduct(yaml.YAMLObject):
         s3.delete_folder(self.bucket.name, prefix)
 
     def get_all_versions(self):
-        service_catalog.list_all_versions(self.product_id)
+        return service_catalog.list_all_versions(self.product_id)
 
     def get_last_version(self):
         versions = self.get_all_versions()

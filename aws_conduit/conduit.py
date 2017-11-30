@@ -315,7 +315,6 @@ def _s3_build(action, product_spec, config=None):
         sls_state = json.load(open('.serverless/serverless-state.json'))
         sls_package = sls_state['package']
         sls_package['bucket'] = sls_state['service']['provider']['deploymentBucketObject']['name']
-        print(sls_package)
         result['product']['template_location'] = helper.put_sls_resource(
             product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
     else:
