@@ -160,6 +160,9 @@ class ConduitProduct(yaml.YAMLObject):
         if 'associatedResources' in product_spec:
             for resource in product_spec['associatedResources']:
                 self.resources.append(resource)
+        if 'nestedStacks' in product_spec:
+            for resource in product_spec['nestedStacks']:
+                self.resources.append(resource)
 
     def tidy_versions(self):
         versions = self.get_all_versions()
