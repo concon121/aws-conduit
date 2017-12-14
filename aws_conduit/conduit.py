@@ -383,6 +383,7 @@ def package_portfolio(portfolio_name, environment, config=None):
                 ))
         package.append(dict(
             template=result['template'],
+            version=result['nextVersion'],
             parameters=parameters,
             product=result['product'],
             policy=result['policy']
@@ -475,11 +476,10 @@ def update_iam_role(spec):
     try:
         if 'roleName' in spec:
             iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['product']))
-
+            iam.add_policy(spec['roleName'], 'ServiceCatalogEndUserFullAccess')
         else:
             raise ValueError('A roleName must be specified for your product.')
     except:
-        iam.add_policy(spec['roleName'], 'ServiceCatalogEndUserFullAccess')
         print('Role probably already exists...')
 
     if 'deployProfile' in spec:
