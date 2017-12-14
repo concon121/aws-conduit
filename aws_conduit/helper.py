@@ -115,6 +115,7 @@ def get_all_portfolio_artifacts(portfolio_name, config):
                     templates.append(dict(
                         template=product['template_location'],
                         product=product['name'],
+                        version=product['nextVersion'],
                         policy=product['policy']
                     ))
     return templates

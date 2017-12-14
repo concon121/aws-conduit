@@ -383,7 +383,7 @@ def package_portfolio(portfolio_name, environment, config=None):
                 ))
         package.append(dict(
             template=result['template'],
-            version=result['nextVersion'],
+            version=result['version'],
             parameters=parameters,
             product=result['product'],
             policy=result['policy']
