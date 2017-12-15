@@ -341,8 +341,8 @@ def _s3_build(action, product_spec, config=None):
     if 'nestedStacks' in product_spec:
         _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
 
-    if action != 'build':
-        _tidy_versions(result['portfolio']['name'], result['product']['name'], next_version, bucket)
+    # if action != 'build':
+    #    _tidy_versions(result['portfolio']['name'], result['product']['name'], next_version, bucket)
 
 
 def _tidy_versions(portfolio, product, version, bucket):
