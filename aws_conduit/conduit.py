@@ -403,6 +403,45 @@ def package_portfolio(portfolio_name, environment, config=None):
 
 
 @inject_config
+def package_product(portfolio_name, product_name, environment, config=None):
+    package = []
+    results = helper.get_all_portfolio_artifacts(portfolio_name, config)
+    for result in results:
+        if result['product'] == product_name:
+            params = cloudformation.list_parameters(result['template'])
+            parameters = []
+            for param in params:
+                if param['ParameterKey'] == 'Environment':
+                    parameters.append(dict(
+                        ParameterKey='Environment',
+                        ParameterValue=environment
+                    ))
+                else:
+                    parameters.append(dict(
+                        ParameterKey=param['ParameterKey']
+                    ))
+            package.append(dict(
+                template=result['template'],
+                version=result['version'],
+                parameters=parameters,
+                product=result['product'],
+                policy=result['policy']
+            ))
+    print(json.dumps(package))
+
+    start = factory.start()
+    bucket = start.create_s3()
+
+    file_name = '{}.json'.format(portfolio_name)
+    file_path = os.path.join(conduit_s3.LOCAL_STORE, file_name)
+    zip_name = '{}-{}.zip'.format(portfolio_name, environment)
+    zip_path = os.path.join(conduit_s3.LOCAL_STORE, zip_name)
+    open(file_path, "w+").write(json.dumps(package))
+    subprocess.call('cd {} && zip -r {} {}'.format(conduit_s3.LOCAL_STORE, zip_name, file_name), shell=True)
+    bucket.put_resource(zip_path, '{}/{}-{}.zip'.format(portfolio_name, portfolio_name, environment))
+
+
+@inject_config
 def provision_product_build(product_name, name, config=None):
     if name is None:
         raise ValueError("A stage must be provided")

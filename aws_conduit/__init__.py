@@ -194,6 +194,15 @@ class Conduit(cmdln.Cmdln):
     def do_package(self, subcmd, opts):
         conduit.package_portfolio(opts.portfolio, opts.environment)
 
+    @cmdln.option("-p", "--portfolio",
+                  help="The name of the portfolio to package.")
+    @cmdln.option("-d", "--product",
+                  help="The name of the product to package.")
+    @cmdln.option("-e", "--environment",
+                  help="The environment to package.")
+    def do_package_product(self, subcmd, opts):
+        conduit.package_product(opts.portfolio, opts.product, opts.environment)
+
 
 def main():
     aws_conduit = Conduit()
