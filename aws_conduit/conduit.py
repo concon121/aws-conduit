@@ -432,13 +432,13 @@ def package_product(portfolio_name, product_name, environment, config=None):
     start = factory.start()
     bucket = start.create_s3()
 
-    file_name = '{}.json'.format(portfolio_name)
+    file_name = '{}-{}.json'.format(portfolio_name, product_name)
     file_path = os.path.join(conduit_s3.LOCAL_STORE, file_name)
-    zip_name = '{}-{}.zip'.format(portfolio_name, environment)
+    zip_name = '{}-{}-{}.zip'.format(portfolio_name, product_name, environment)
     zip_path = os.path.join(conduit_s3.LOCAL_STORE, zip_name)
     open(file_path, "w+").write(json.dumps(package))
     subprocess.call('cd {} && zip -r {} {}'.format(conduit_s3.LOCAL_STORE, zip_name, file_name), shell=True)
-    bucket.put_resource(zip_path, '{}/{}-{}.zip'.format(portfolio_name, portfolio_name, environment))
+    bucket.put_resource(zip_path, '{}/{}-{}-{}.zip'.format(portfolio_name, portfolio_name, product_name, environment))
 
 
 @inject_config
