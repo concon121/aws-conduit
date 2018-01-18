@@ -1,11 +1,12 @@
 """Helper methods for working with S3"""
 import os
+import tempfile
 
 import attr
 import yaml
 from aws_conduit.aws import s3
 
-LOCAL_STORE = os.path.join(os.path.expanduser('~'), '.conduit')
+LOCAL_STORE = tempfile.gettempdir()
 if not os.path.exists(LOCAL_STORE):
     os.makedirs(LOCAL_STORE)
 
