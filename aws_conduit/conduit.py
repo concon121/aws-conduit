@@ -354,24 +354,16 @@ def package_portfolio(portfolio_name, environment, config=None):
     package = []
     results = helper.get_all_portfolio_artifacts(portfolio_name, config)
     for result in results:
-        params = cloudformation.list_parameters(result['template'])
-        parameters = []
-        for param in params:
-            if param['ParameterKey'] == 'Environment':
-                parameters.append(dict(
-                    ParameterKey='Environment',
-                    ParameterValue=environment
-                ))
-            else:
-                parameters.append(dict(
-                    ParameterKey=param['ParameterKey']
-                ))
-        package.append(dict(
+        item = dict(
             template=result['template'],
             version=result['version'],
-            parameters=parameters,
             product=result['product']
-        ))
+        )
+        if 'resources' in result:
+            item['resources'] = result['resources']
+        if 'nestedStacks' in result:
+            item['nestedStacks'] = result['nestedStacks']
+        package.append(item)
     print(json.dumps(package))
 
     start = factory.start()
@@ -392,24 +384,16 @@ def package_product(portfolio_name, product_name, environment, config=None):
     results = helper.get_all_portfolio_artifacts(portfolio_name, config)
     for result in results:
         if result['product'] == product_name:
-            params = cloudformation.list_parameters(result['template'])
-            parameters = []
-            for param in params:
-                if param['ParameterKey'] == 'Environment':
-                    parameters.append(dict(
-                        ParameterKey='Environment',
-                        ParameterValue=environment
-                    ))
-                else:
-                    parameters.append(dict(
-                        ParameterKey=param['ParameterKey']
-                    ))
-            package.append(dict(
+            item = dict(
                 template=result['template'],
                 version=result['version'],
-                parameters=parameters,
                 product=result['product']
-            ))
+            )
+            if 'resources' in result:
+                item['resources'] = result['resources']
+            if 'nestedStacks' in result:
+                item['nestedStacks'] = result['nestedStacks']
+            package.append()
     print(json.dumps(package))
 
     start = factory.start()
