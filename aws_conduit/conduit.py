@@ -306,7 +306,9 @@ def _s3_build(action, product_spec, config=None):
     result = helper.find_s3_build_product(product_spec, config)
     next_version = helper.next_version(action, result['product']['nextVersion'])
     print("The next version is: {}".format(next_version))
+    result['product']['currentVersion'] = next_version
     result['product']['nextVersion'] = next_version
+    result['product']['policy'] = None
     start = factory.start()
     bucket = start.create_s3()
     sls_package = None
@@ -320,29 +322,12 @@ def _s3_build(action, product_spec, config=None):
     else:
         result['product']['template_location'] = helper.put_resource(
             product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
-
-    if 'deployProfile' in product_spec:
-        statements = []
-        policy = dict(
-            Version="2012-10-17",
-            Statement=statements
-        )
-        for entry in product_spec['deployProfile']:
-            statement = dict(
-                Effect="Allow",
-                Action=entry['actions'],
-                Resource=entry['resources']
-            )
-            statements.append(statement)
-        result['product']['policy'] = policy
-
     if 'associatedResources' in product_spec:
         _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
+        result['product']['resources'] = product_spec['associatedResources']
     if 'nestedStacks' in product_spec:
         _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
-
-    # if action != 'build':
-    #    _tidy_versions(result['portfolio']['name'], result['product']['name'], next_version, bucket)
+        result['product']['nestedStacks'] = product_spec['nestedStacks']
 
 
 def _tidy_versions(portfolio, product, version, bucket):
@@ -385,8 +370,7 @@ def package_portfolio(portfolio_name, environment, config=None):
             template=result['template'],
             version=result['version'],
             parameters=parameters,
-            product=result['product'],
-            policy=result['policy']
+            product=result['product']
         ))
     print(json.dumps(package))
 
@@ -424,8 +408,7 @@ def package_product(portfolio_name, product_name, environment, config=None):
                 template=result['template'],
                 version=result['version'],
                 parameters=parameters,
-                product=result['product'],
-                policy=result['policy']
+                product=result['product']
             ))
     print(json.dumps(package))
 
@@ -512,31 +495,18 @@ def terminate_product(provisioned_product_name, config=None):
 
 
 def update_iam_role(spec):
-    try:
-        if 'roleName' in spec:
+    if 'roleName' in spec:
+        try:
             iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['product']))
+        except:
+            print('Role probably already exists...')
+        try:
             iam.add_policy(spec['roleName'], 'ServiceCatalogEndUserFullAccess')
-        else:
-            raise ValueError('A roleName must be specified for your product.')
-    except:
-        print('Role probably already exists...')
-
-    if 'deployProfile' in spec:
-        print('Updating IAM Role...')
-        statements = []
-        policy = dict(
-            Version="2012-10-17",
-            Statement=statements
-        )
-        for entry in spec['deployProfile']:
-            statement = dict(
-                Effect="Allow",
-                Action=entry['actions'],
-                Resource=entry['resources']
-            )
-            statements.append(statement)
-
-        iam.put_role_policy(spec['roleName'], 'deploy-policy', policy)
-        return policy
+        except:
+            print('Policy probably already added')
+        try:
+            iam.add_policy(spec['roleName'], 'AdministratorAccess')
+        except:
+            print('Policy probably already added!')
     else:
-        raise ValueError('No deploy profile.  Will not continute...')
+        raise ValueError('A roleName must be specified for your product.')
