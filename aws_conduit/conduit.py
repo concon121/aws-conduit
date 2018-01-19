@@ -393,7 +393,7 @@ def package_product(portfolio_name, product_name, environment, config=None):
                 item['resources'] = result['resources']
             if 'nestedStacks' in result:
                 item['nestedStacks'] = result['nestedStacks']
-            package.append()
+            package.append(item)
     print(json.dumps(package))
 
     start = factory.start()
