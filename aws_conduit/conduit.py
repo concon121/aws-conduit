@@ -277,10 +277,10 @@ def build(action, product):
     for product_spec in spec['inventory']:
         if (product is not None and product_spec['product'] == product) or product is None:
             # Perform Build Steps
-            if 'build' in product_spec:
-                for step in product_spec['build']:
-                    subprocess.call(step, shell=True)
             if 'serviceCatalog' in product_spec and product_spec['serviceCatalog']:
+                if 'build' in product_spec:
+                    for step in product_spec['build']:
+                        subprocess.call(step, shell=True)
                 _service_catalog_build(action, product_spec)
             else:
                 _s3_build(action, product_spec)
@@ -313,6 +313,10 @@ def _s3_build(action, product_spec, config=None):
     start = factory.start()
     bucket = start.create_s3()
     sls_package = None
+
+    if 'build' in product_spec:
+        for step in product_spec['build']:
+            subprocess.call(step, shell=True, env=dict(os.environ, VERSION=next_version))
 
     if 'sls' in product_spec and product_spec['sls'] is True:
         sls_state = json.load(open('.serverless/serverless-state.json'))
