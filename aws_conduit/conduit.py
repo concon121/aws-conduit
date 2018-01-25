@@ -295,7 +295,8 @@ def _service_catalog_build(action, product_spec, config=None):
     print(product_spec)
     update_iam_role(product_spec)
     product.add_resources(product_spec)
-    product.create_deployer_launch_constraint(helper.get_portfolio(config, name=product_spec['portfolio']), product_spec['roleName'])
+    if 'roleName' in product_spec:
+        product.create_deployer_launch_constraint(helper.get_portfolio(config, name=product_spec['portfolio']), product_spec['roleName'])
     product.release(action, product_spec['artifact'], product.version)
     if action != 'build':
         product.tidy_versions()
@@ -492,5 +493,3 @@ def update_iam_role(spec):
             iam.add_policy(spec['roleName'], 'AdministratorAccess')
         except:
             print('Policy probably already added!')
-    else:
-        raise ValueError('A roleName must be specified for your product.')
