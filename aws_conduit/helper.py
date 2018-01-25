@@ -10,6 +10,8 @@ STS = boto3.client('sts')
 CONFIG_PREFIX = 'conduit.yaml'
 
 RESOURCES_KEY = "__resources__"
+BUCKET_KEY = "__bucket__"
+PREFIX_KEY = "__prefix__"
 
 
 def get_region():
@@ -182,12 +184,14 @@ def next_version(release_type, current_version):
 def put_resource(path, bucket, portfolio, product, version, environment='core'):
     if environment is not None:
         key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
+        prefix = "{}/{}/{}/{}".format(portfolio, product, environment, version)
         directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
     else:
         key = "{}/{}/{}/{}".format(portfolio, product, version, path)
+        prefix = "{}/{}/{}".format(portfolio, product, version)
         directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
     print("Adding resource to release: {}".format(path))
-    replace_resources(directory, path=path)
+    replace_resources(directory, bucket, prefix, path=path)
     bucket.put_resource(path, key)
     revert_resources(directory, path=path)
     return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, path)
@@ -210,10 +214,13 @@ def read_write(function):
 
 
 @read_write
-def replace_resources(directory, path=None, file_data=None):
+def replace_resources(directory, bucket, prefix, path=None, file_data=None):
     if file_data is not None:
         print("Replacing in {}".format(path))
-        return file_data.replace(RESOURCES_KEY, directory)
+        data = file_data.replace(RESOURCES_KEY, directory)
+        data = data.replace(BUCKET_KEY, bucket.name)
+        data = data.replace(PREFIX_KEY, prefix)
+        return data
 
 
 @read_write
