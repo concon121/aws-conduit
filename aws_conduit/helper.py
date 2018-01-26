@@ -205,13 +205,17 @@ def read_write(function):
 
     def wrapper(*args, **kwargs):
         if 'path' in kwargs:
-            if kwargs['path'].endswith('yaml') or kwargs['path'].endswith('yml') or kwargs['path'].endswith('json'):
-                f = open(kwargs['path'], 'r')
+            if isinstance(kwargs['path'], str):
+                path = kwargs['path']
+            else:
+                path = kwargs['path']['source']
+            if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
+                f = open(path, 'r')
                 filedata = f.read()
                 f.close()
                 newdata = function(*args, **kwargs, file_data=filedata)
                 if newdata is not None:
-                    f = open(kwargs['path'], 'w')
+                    f = open(path, 'w')
                     f.write(newdata)
                     f.close()
     return wrapper
