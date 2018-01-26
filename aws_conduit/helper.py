@@ -13,6 +13,10 @@ RESOURCES_KEY = "__resources__"
 BUCKET_KEY = "__bucket__"
 PREFIX_KEY = "__prefix__"
 
+RESOURCES_KEY_OTHER = "__|resources|__"
+BUCKET_KEY_OTHER = "__|bucket|__"
+PREFIX_KEY_OTHER = "__|prefix|__"
+
 
 def get_region():
     region = SESSION.region_name
@@ -220,6 +224,9 @@ def replace_resources(directory, bucket, prefix, path=None, file_data=None):
         data = file_data.replace(RESOURCES_KEY, directory)
         data = data.replace(BUCKET_KEY, bucket.name)
         data = data.replace(PREFIX_KEY, prefix)
+        data = data.replace(RESOURCES_KEY_OTHER, RESOURCES_KEY)
+        data = data.replace(BUCKET_KEY_OTHER, BUCKET_KEY)
+        data = data.replace(PREFIX_KEY_OTHER, PREFIX_KEY)
         return data
 
 
