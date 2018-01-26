@@ -195,7 +195,7 @@ def put_resource(source_path, destination_path, bucket, portfolio, product, vers
         prefix = "{}/{}/{}".format(portfolio, product, version)
         directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
     print("Adding resource to release: {}".format(source_path))
-    replace_resources(directory, bucket, prefix, path=destination_path)
+    replace_resources(directory, bucket, prefix, path=source_path)
     bucket.put_resource(source_path, key)
     revert_resources(directory, path=source_path)
     return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, destination_path)
