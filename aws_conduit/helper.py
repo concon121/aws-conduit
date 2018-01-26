@@ -185,20 +185,20 @@ def next_version(release_type, current_version):
     return product_version
 
 
-def put_resource(path, bucket, portfolio, product, version, environment='core'):
+def put_resource(source_path, destination_path, bucket, portfolio, product, version, environment='core'):
     if environment is not None:
-        key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, path)
+        key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, destination_path)
         prefix = "{}/{}/{}/{}".format(portfolio, product, environment, version)
         directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
     else:
-        key = "{}/{}/{}/{}".format(portfolio, product, version, path)
+        key = "{}/{}/{}/{}".format(portfolio, product, version, destination_path)
         prefix = "{}/{}/{}".format(portfolio, product, version)
         directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
-    print("Adding resource to release: {}".format(path))
-    replace_resources(directory, bucket, prefix, path=path)
-    bucket.put_resource(path, key)
-    revert_resources(directory, path=path)
-    return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, path)
+    print("Adding resource to release: {}".format(source_path))
+    replace_resources(directory, bucket, prefix, path=destination_path)
+    bucket.put_resource(source_path, key)
+    revert_resources(directory, path=source_path)
+    return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, destination_path)
 
 
 def read_write(function):

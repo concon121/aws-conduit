@@ -326,7 +326,7 @@ def _s3_build(action, product_spec, config=None):
             product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
     else:
         result['product']['template_location'] = helper.put_resource(
-            product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+            product_spec['artifact'], product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
     if 'associatedResources' in product_spec:
         _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
         result['product']['resources'] = product_spec['associatedResources']
@@ -351,7 +351,13 @@ def _put_resources(resources, product_spec, bucket, next_version, sls_package):
         if 'sls' in product_spec and product_spec['sls'] is True:
             helper.put_sls_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
         else:
-            helper.put_resource(resource, bucket, product_spec['portfolio'], product_spec['product'], next_version)
+            if isinstance(resource, str):
+                source_path = resource
+                destination_path = resource
+            else:
+                source_path = resource['source']
+                destination_path = resource['destination']
+            helper.put_resource(source_path, destination_path, bucket, product_spec['portfolio'], product_spec['product'], next_version)
 
 
 @inject_config
@@ -426,7 +432,7 @@ def provision_product_build(product_name, name, config=None):
         if product_spec is None:
             raise ValueError("The requested product was not defined in conduitspec.yaml")
         print("Provisioning product...")
-        product = helper.find_build_product(product_name, spec, config)
+        product = helper.find_build_product(spec, config)
         update_iam_role(product_spec)
         _provision(product, name)
         if not hasattr(product, 'provisioned'):
