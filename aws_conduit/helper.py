@@ -195,7 +195,7 @@ def read_write(function):
                 newdata = function(*args, **kwargs, file_data=filedata)
                 if newdata is not None:
                     f = open(path, 'w', encoding='utf-8')
-                    f.write(newdata.)
+                    f.write(newdata)
                     f.close()
     return wrapper
 
