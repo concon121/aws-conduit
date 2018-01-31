@@ -190,12 +190,12 @@ def read_write(function):
                 path = kwargs['path']['source']
             if path.endswith('yaml') or path.endswith('yml') or path.endswith('json'):
                 f = open(path, 'r')
-                filedata = f.read()
+                filedata = f.read().decode('utf-8')
                 f.close()
                 newdata = function(*args, **kwargs, file_data=filedata)
                 if newdata is not None:
                     f = open(path, 'w')
-                    f.write(newdata)
+                    f.write(newdata.encode('utf-8'))
                     f.close()
     return wrapper
 
