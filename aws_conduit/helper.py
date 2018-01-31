@@ -121,7 +121,7 @@ def get_all_portfolio_artifacts(portfolio_name, config):
                     item = dict(
                         template=product['template_location'],
                         product=product['name'],
-                        version=product['nextVersion']
+                        version=product['currentVersion']
                     )
                     if 'resources' in product:
                         item['resources'] = product['resources']
@@ -131,31 +131,10 @@ def get_all_portfolio_artifacts(portfolio_name, config):
     return templates
 
 
-def find_provisioned_build_product(to_find_product, spec, config):
-    portfolio = None
-    product = None
-    for port in config['portfolios']:
-        if port.name == spec['portfolio']:
-            portfolio = port
-            for prod in portfolio.products:
-                if hasattr(prod, provisioned):
-                    for prov in prod.provisioned:
-                        if prov == to_find_product:
-                            product = prod
-                            break
-
-    if portfolio is None or not portfolio.exists():
-        raise ValueError("The specified portfolio does not exist: {}".format(to_find_product))
-    elif product is None or not product.exists():
-        raise ValueError("The product {} does not exist in portfolio {}".format(to_find_product, spec['portfolio']))
-    return product
-
-
 def find_s3_build_product(spec, config):
     default_product = dict(
         name=spec['product'],
-        currentVersion='0.0.0',
-        nextVersion='0.0.0'
+        currentVersion='0.0.0'
     )
     result = find_build_product(spec, config)
     if result['portfolio'] is None:

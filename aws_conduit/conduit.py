@@ -7,7 +7,7 @@ import semver
 import yaml
 from aws_conduit import conduit_factory as factory
 from aws_conduit import conduit_s3, helper
-from aws_conduit.aws import cloudformation, iam, s3, service_catalog
+from aws_conduit.aws import iam, s3, service_catalog
 from aws_conduit.helper import inject_config
 
 CONFIG_PREFIX = 'conduit.yaml'
@@ -305,10 +305,11 @@ def _service_catalog_build(action, product_spec, config=None):
 @inject_config
 def _s3_build(action, product_spec, config=None):
     result = helper.find_s3_build_product(product_spec, config)
-    next_version = helper.next_version(action, result['product']['nextVersion'])
+    next_version = helper.next_version(action, result['product']['currentVersion'])
     print("The next version is: {}".format(next_version))
     result['product']['currentVersion'] = next_version
-    result['product']['nextVersion'] = next_version
+    if 'nextVersion' in result['product']:
+        del result['product']['nextVersion']
     result['product']['policy'] = None
     start = factory.start()
     bucket = start.create_s3()
@@ -484,7 +485,6 @@ def terminate_product(provisioned_product_name, config=None):
             for prod in portfolio.products:
                 product = prod
                 break
-    #product = helper.find_provisioned_build_product(provisioned_product_name, spec, config)
     product.terminate(provisioned_product_name)
     product.provisioned.remove(provisioned_product_name)
 
