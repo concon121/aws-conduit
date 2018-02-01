@@ -383,7 +383,9 @@ def package_product(portfolio_name, product_name, environment, config=None):
     package = []
     results = helper.get_all_portfolio_artifacts(portfolio_name, config)
     for result in results:
-        if result['product'] == product_name:
+        if 'name' in result and result['name'] == product_name:
+            package.append(result)
+        elif 'product' in result and result['product'] == product_name:
             package.append(result)
     print(json.dumps(package))
 
@@ -471,7 +473,7 @@ def terminate_product(provisioned_product_name, config=None):
 def update_iam_role(spec):
     if 'roleName' in spec:
         try:
-            iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['product']))
+            iam.create_role(spec['roleName'], 'Deployer role for {}'.format(spec['name']))
         except:
             print('Role probably already exists...')
         try:
