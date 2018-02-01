@@ -112,22 +112,13 @@ def get_all_portfolio_artifacts(portfolio_name, config):
             if port.name == portfolio_name:
                 for product in port.products:
                     templates.append(dict(
-                        template=product.template_location,
+                        template=product.template,
                         product=product.name
                     ))
         else:
             if port['name'] == portfolio_name:
                 for product in port['products']:
-                    item = dict(
-                        template=product['template_location'],
-                        product=product['name'],
-                        version=product['currentVersion']
-                    )
-                    if 'resources' in product:
-                        item['resources'] = product['resources']
-                    if 'nestedStacks' in product:
-                        item['nestedStacks'] = product['nestedStacks']
-                    templates.append(item)
+                    templates.append(product)
     return templates
 
 

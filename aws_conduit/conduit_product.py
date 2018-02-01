@@ -19,7 +19,7 @@ class ConduitProduct(yaml.YAMLObject):
     cfn_type = attr.ib()
     portfolio = attr.ib()
     description = attr.ib(default='No description set')
-    template_location = attr.ib(default=None)
+    template = attr.ib(default=None)
     template_prefix = attr.ib(default=None)
     product_id = attr.ib(default=None)
     version = attr.ib(default="0.0.0")
@@ -44,8 +44,8 @@ class ConduitProduct(yaml.YAMLObject):
         """
         Create a new product.
         """
-        if not self.template_location:
-            self.template_location = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, self.version, self.name, self.cfn_type)
+        if not self.template:
+            self.template = "{}/{}/{}/{}/{}.{}".format(self.bucket.get_url(), self.portfolio, self.name, self.version, self.name, self.cfn_type)
             self.template_prefix = "{}/{}/{}/{}.{}".format(self.portfolio, self.name, self.version, self.name, self.cfn_type)
         self._add_initial_template()
         description = 'NotSet'
@@ -57,7 +57,7 @@ class ConduitProduct(yaml.YAMLObject):
             email = support['email']
         if 'url' in support:
             url = support['url']
-        create_response = service_catalog.create_product(self, email, url, description, [], self.template_location)
+        create_response = service_catalog.create_product(self, email, url, description, [], self.template)
         self.product_id = create_response['ProductViewDetail']['ProductViewSummary']['ProductId']
 
     def create_role(self, name):

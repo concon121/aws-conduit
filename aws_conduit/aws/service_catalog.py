@@ -30,7 +30,7 @@ def create_constraint(portfolio_id, product_id, params, name):
     )
 
 
-def create_product(product, support_email, support_url, support_description, tags, template_location):
+def create_product(product, support_email, support_url, support_description, tags, template):
     create_response = SERVICE_CATALOG.create_product(
         Name=product.name,
         Owner=product.owner,
@@ -45,7 +45,7 @@ def create_product(product, support_email, support_url, support_description, tag
             'Name': '0.0.0',
             'Description': 'Initial product creation.',
             'Info': {
-                'LoadTemplateFromURL': template_location
+                'LoadTemplateFromURL': template
             },
             'Type': 'CLOUD_FORMATION_TEMPLATE'
         },

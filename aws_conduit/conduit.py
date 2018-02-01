@@ -310,7 +310,8 @@ def _s3_build(action, product_spec, config=None):
     result['product']['currentVersion'] = next_version
     if 'nextVersion' in result['product']:
         del result['product']['nextVersion']
-    result['product']['policy'] = None
+    if 'policy' in result['product']:
+        del result['product']['policy']
     start = factory.start()
     bucket = start.create_s3()
     sls_package = None
@@ -323,17 +324,12 @@ def _s3_build(action, product_spec, config=None):
         sls_state = json.load(open('.serverless/serverless-state.json'))
         sls_package = sls_state['package']
         sls_package['bucket'] = sls_state['service']['provider']['deploymentBucketObject']['name']
-        result['product']['template_location'] = helper.put_sls_resource(
+        result['product']['template'] = helper.put_sls_resource(
             product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version, sls_package)
     else:
-        result['product']['template_location'] = helper.put_resource(
+        result['product']['template'] = helper.put_resource(
             product_spec['artifact'], product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
-    if 'associatedResources' in product_spec:
-        _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
-        result['product']['resources'] = product_spec['associatedResources']
-    if 'nestedStacks' in product_spec:
-        _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
-        result['product']['nestedStacks'] = product_spec['nestedStacks']
+    result['product'].update(product_spec)
 
 
 def _tidy_versions(portfolio, product, version, bucket):
@@ -363,19 +359,7 @@ def _put_resources(resources, product_spec, bucket, next_version, sls_package):
 
 @inject_config
 def package_portfolio(portfolio_name, environment, config=None):
-    package = []
-    results = helper.get_all_portfolio_artifacts(portfolio_name, config)
-    for result in results:
-        item = dict(
-            template=result['template'],
-            version=result['version'],
-            product=result['product']
-        )
-        if 'resources' in result:
-            item['resources'] = result['resources']
-        if 'nestedStacks' in result:
-            item['nestedStacks'] = result['nestedStacks']
-        package.append(item)
+    package = helper.get_all_portfolio_artifacts(portfolio_name, config)
     print(json.dumps(package))
 
     start = factory.start()
@@ -396,16 +380,7 @@ def package_product(portfolio_name, product_name, environment, config=None):
     results = helper.get_all_portfolio_artifacts(portfolio_name, config)
     for result in results:
         if result['product'] == product_name:
-            item = dict(
-                template=result['template'],
-                version=result['version'],
-                product=result['product']
-            )
-            if 'resources' in result:
-                item['resources'] = result['resources']
-            if 'nestedStacks' in result:
-                item['nestedStacks'] = result['nestedStacks']
-            package.append(item)
+            package.append(result)
     print(json.dumps(package))
 
     start = factory.start()
