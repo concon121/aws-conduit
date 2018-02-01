@@ -329,6 +329,10 @@ def _s3_build(action, product_spec, config=None):
     else:
         result['product']['template'] = helper.put_resource(
             product_spec['artifact'], product_spec['artifact'], bucket, product_spec['portfolio'], product_spec['product'], next_version)
+    if 'associatedResources' in product_spec:
+        _put_resources(product_spec['associatedResources'], product_spec, bucket, next_version, sls_package)
+    if 'nestedStacks' in product_spec:
+        _put_resources(product_spec['nestedStacks'], product_spec, bucket, next_version, sls_package)
     result['product'].update(product_spec)
 
 
