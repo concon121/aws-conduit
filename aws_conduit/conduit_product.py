@@ -1,5 +1,3 @@
-import json
-
 import attr
 import boto3
 import semver
@@ -146,9 +144,9 @@ class ConduitProduct(yaml.YAMLObject):
         self.release_new_build(local_template, product_version)
 
     def release_new_build(self, local_template, product_version):
-        helper.put_resource(local_template, self.bucket, self.portfolio, self.name, product_version, environment=None)
+        helper.put_resource(local_template, local_template, self.bucket, self.portfolio, self.name, product_version, environment=None)
         for resource in self.resources:
-            helper.put_resource(resource, self.bucket, self.portfolio, self.name, product_version, environment=None)
+            helper.put_resource(resource, resource, self.bucket, self.portfolio, self.name, product_version, environment=None)
         template_url = "{}/{}/{}/{}/{}".format(self.bucket.get_url(), self.portfolio, self.name, product_version, local_template)
         print("Creating new version to template: {}".format(template_url))
         service_catalog.new_version(self.product_id, product_version, template_url)

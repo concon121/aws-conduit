@@ -157,14 +157,25 @@ def next_version(release_type, current_version):
 
 def put_resource(source_path, destination_path, bucket, portfolio, product, version, environment='core'):
     if environment is not None:
-        key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, destination_path)
-        prefix = "{}/{}/{}/{}".format(portfolio, product, environment, version)
-        directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
+        if destination_path is not None:
+            key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, destination_path)
+            prefix = "{}/{}/{}/{}".format(portfolio, product, environment, version)
+            directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
+        else:
+            key = "{}/{}/{}/{}".format(portfolio, product, environment, version)
+            prefix = "{}/{}/{}/{}".format(portfolio, product, environment, version)
+            directory = "{}/{}/{}/{}/{}".format(bucket.name, portfolio, product, environment, version)
     else:
-        key = "{}/{}/{}/{}".format(portfolio, product, version, destination_path)
-        prefix = "{}/{}/{}".format(portfolio, product, version)
-        directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
+        if destination_path is not None:
+            key = "{}/{}/{}/{}".format(portfolio, product, version, destination_path)
+            prefix = "{}/{}/{}".format(portfolio, product, version)
+            directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
+        else:
+            key = "{}/{}/{}".format(portfolio, product, version)
+            prefix = "{}/{}/{}".format(portfolio, product, version)
+            directory = "{}/{}/{}/{}".format(bucket.name, portfolio, product, version)
     print("Adding resource to release: {}".format(source_path))
+    print("Key is: {}".format(key))
     replace_resources(directory, bucket, prefix, path=source_path)
     bucket.put_resource(source_path, key)
     revert_resources(directory, path=source_path)
@@ -218,6 +229,7 @@ def put_sls_resource(path, bucket, portfolio, product, version, sls_package, env
     directory = "{}/{}/{}/{}".format(portfolio, product, environment, version)
     key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, new_path)
     replace_sls_resources(directory, bucket.name, sls_package, environment, path=path)
+    replace_resources(directory, bucket, directory, None)
     print("Adding sls resource to release: {}".format(path))
     bucket.put_resource(path, key)
     revert_sls_resources(directory, bucket.name, sls_package, environment, path=path)

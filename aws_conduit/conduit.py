@@ -312,6 +312,8 @@ def _s3_build(action, product_spec, config=None):
         del result['product']['nextVersion']
     if 'policy' in result['product']:
         del result['product']['policy']
+    if 'deployProfile' in result['product']:
+        del result['product']['deployProfile']
     start = factory.start()
     bucket = start.create_s3()
     sls_package = None
