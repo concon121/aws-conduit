@@ -241,7 +241,7 @@ def replace_sls_resources(key, bucket, sls_package, environment, path=None, file
     if file_data is not None:
         print("Replacing in {}".format(path))
         print("The key is: {}".format(key))
-        return file_data.replace(sls_package['artifactDirectoryName'], key).replace(sls_package['bucket'], bucket).replace('${STAGE}', environment)
+        return file_data.replace(sls_package['artifactDirectoryName'], key).replace(sls_package['bucket'], bucket).replace('${STAGE}', environment).replace('.serverless', key)
 
 
 @read_write
