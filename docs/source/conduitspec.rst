@@ -25,7 +25,7 @@ build                NO            Array         A collection of build steps to 
 artifact             YES           String        The root Cloudformation stack for this product.
 nestedStacks         NO            Array         A collection of references to the files which are used as nested stacks.
 associatedResources  NO            Array         Other resources which your Cloudformation stack may need.  These resources are stored in the artifact repository along with your Cloudformation template.
-=============================================================
+===================  ===========  ============  ============
 
 Examples
 -------------------
