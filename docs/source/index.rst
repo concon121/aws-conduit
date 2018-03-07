@@ -7,4 +7,5 @@ Product management for AWS Service Catalog.
    :maxdepth: 4
    :caption: Documentation
 
+   conduitspec
    modules

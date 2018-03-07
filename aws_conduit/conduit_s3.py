@@ -2,8 +2,9 @@
 import os
 import tempfile
 
-import attr
 import yaml
+
+import attr
 from aws_conduit.aws import s3
 
 LOCAL_STORE = tempfile.gettempdir()
