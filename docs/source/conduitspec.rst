@@ -13,9 +13,9 @@ The root element of the yaml is the **inventory**, which is a collection of depl
 Structure
 -----------------
 
-============        ============  ============  ============
+============        ============  ============  ================================================================================================================================================================
 Key                  Required      Type          Description
-------------        ------------  ------------  ------------
+------------        ------------  ------------  ----------------------------------------------------------------------------------------------------------------------------------------------------------------
 inventory            YES           Array         A collection of deployable artefacts.
 portfolio            YES           String        The name of the logical group that the artefact belongs to.
 product              YES           String        The name of the deployable artefact.
@@ -25,7 +25,7 @@ build                NO            Array         A collection of build steps to 
 artifact             YES           String        The root Cloudformation stack for this product.
 nestedStacks         NO            Array         A collection of references to the files which are used as nested stacks.
 associatedResources  NO            Array         Other resources which your Cloudformation stack may need.  These resources are stored in the artifact repository along with your Cloudformation template.
-===================  ===========  ============  ============
+===================  ===========  ============  ================================================================================================================================================================
 
 Examples
 -------------------
