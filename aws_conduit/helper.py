@@ -1,4 +1,5 @@
 import boto3
+
 import semver
 from aws_conduit import conduit_factory as factory
 from aws_conduit.conduit_portfolio import ConduitPortfolio
@@ -73,7 +74,7 @@ def inject_config(function):
     configuration = bucket.get_config(CONFIG_PREFIX)
 
     def wrapper(*args, **kwargs):
-        result = function(*args, **kwargs, config=configuration)
+        result = function(args, kwargs, config=configuration)
         bucket.put_config(configuration, CONFIG_PREFIX)
         return result
 
