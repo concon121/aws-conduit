@@ -283,6 +283,7 @@ def build(action, product):
                         subprocess.call(step, shell=True)
                 _service_catalog_build(action, product_spec)
             else:
+                print(product_spec)
                 _s3_build(action, product_spec)
 
 
@@ -304,6 +305,7 @@ def _service_catalog_build(action, product_spec, config=None):
 
 @inject_config
 def _s3_build(action, product_spec, config=None):
+    print(product_spec)
     result = helper.find_s3_build_product(product_spec, config)
     next_version = helper.next_version(action, result['product']['currentVersion'])
     print("The next version is: {}".format(next_version))

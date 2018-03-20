@@ -74,7 +74,7 @@ def inject_config(function):
     configuration = bucket.get_config(CONFIG_PREFIX)
 
     def wrapper(*args, **kwargs):
-        result = function(args, kwargs, config=configuration)
+        result = function(*args, **kwargs, config=configuration)
         bucket.put_config(configuration, CONFIG_PREFIX)
         return result
 
@@ -124,6 +124,7 @@ def get_all_portfolio_artifacts(portfolio_name, config):
 
 
 def find_s3_build_product(spec, config):
+    print(spec)
     default_product = dict(
         name=spec['product'],
         currentVersion='0.0.0'
@@ -195,7 +196,7 @@ def read_write(function):
                 f = open(path, 'r', encoding='utf-8')
                 filedata = f.read()
                 f.close()
-                newdata = function(args, kwargs, file_data=filedata)
+                newdata = function(*args, **kwargs, file_data=filedata)
                 if newdata is not None:
                     f = open(path, 'w', encoding='utf-8')
                     f.write(newdata)
@@ -206,7 +207,7 @@ def read_write(function):
 @read_write
 def replace_resources(directory, bucket, prefix, path=None, file_data=None):
     if file_data is not None:
-        print("Replacing in {}".format(path))
+        print("111 Replacing in {}".format(path))
         data = file_data.replace(RESOURCES_KEY, directory)
         data = data.replace(BUCKET_KEY, bucket.name)
         data = data.replace(PREFIX_KEY, prefix)
@@ -219,7 +220,7 @@ def replace_resources(directory, bucket, prefix, path=None, file_data=None):
 @read_write
 def revert_resources(directory, path=None, file_data=None):
     if file_data is not None:
-        print("Replacing in {}".format(path))
+        print("222 Replacing in {}".format(path))
         return file_data.replace(directory, RESOURCES_KEY)
 
 
@@ -229,8 +230,8 @@ def put_sls_resource(path, bucket, portfolio, product, version, sls_package, env
         new_path = new_path.replace('.serverless/', '')
     directory = "{}/{}/{}/{}".format(portfolio, product, environment, version)
     key = "{}/{}/{}/{}/{}".format(portfolio, product, environment, version, new_path)
+    replace_resources(directory, bucket, directory, path=path)
     replace_sls_resources(directory, bucket.name, sls_package, environment, path=path)
-    replace_resources(directory, bucket, directory, None)
     print("Adding sls resource to release: {}".format(path))
     bucket.put_resource(path, key)
     revert_sls_resources(directory, bucket.name, sls_package, environment, path=path)
@@ -240,7 +241,7 @@ def put_sls_resource(path, bucket, portfolio, product, version, sls_package, env
 @read_write
 def replace_sls_resources(key, bucket, sls_package, environment, path=None, file_data=None):
     if file_data is not None:
-        print("Replacing in {}".format(path))
+        print("333 444 Replacing in {}".format(path))
         print("The key is: {}".format(key))
         return file_data.replace(sls_package['artifactDirectoryName'], key).replace(sls_package['bucket'], bucket).replace('${STAGE}', environment).replace('.serverless', key)
 
