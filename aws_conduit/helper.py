@@ -221,12 +221,12 @@ def replace_resources(directory, bucket, prefix, path=None, file_data=None):
 def revert_resources(directory, bucket, prefix, path=None, file_data=None):
     if file_data is not None:
         print("Replacing in {}".format(path))
+        data = data.replace(BUCKET_KEY, BUCKET_KEY_OTHER)
+        data = data.replace(PREFIX_KEY, PREFIX_KEY_OTHER)
+        data = data.replace(RESOURCES_KEY, RESOURCES_KEY_OTHER)
         data = file_data.replace(directory, RESOURCES_KEY)
         data = data.replace(bucket.name,BUCKET_KEY)
         data = data.replace(prefix, PREFIX_KEY)
-        data = data.replace(RESOURCES_KEY, RESOURCES_KEY_OTHER)
-        data = data.replace(BUCKET_KEY, BUCKET_KEY_OTHER)
-        data = data.replace(PREFIX_KEY, PREFIX_KEY_OTHER)
         return data
 
 
