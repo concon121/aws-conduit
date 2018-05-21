@@ -180,7 +180,7 @@ def put_resource(source_path, destination_path, bucket, portfolio, product, vers
     print("Key is: {}".format(key))
     replace_resources(directory, bucket, prefix, path=source_path)
     bucket.put_resource(source_path, key)
-    revert_resources(directory, path=source_path)
+    revert_resources(directory, bucket, prefix, path=source_path)
     return "https://s3-{}.amazonaws.com/{}/{}".format(get_region(), directory, destination_path)
 
 
