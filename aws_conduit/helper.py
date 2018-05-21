@@ -207,7 +207,7 @@ def read_write(function):
 @read_write
 def replace_resources(directory, bucket, prefix, path=None, file_data=None):
     if file_data is not None:
-        print("111 Replacing in {}".format(path))
+        print("Replacing in {}".format(path))
         data = file_data.replace(RESOURCES_KEY, directory)
         data = data.replace(BUCKET_KEY, bucket.name)
         data = data.replace(PREFIX_KEY, prefix)
@@ -218,10 +218,16 @@ def replace_resources(directory, bucket, prefix, path=None, file_data=None):
 
 
 @read_write
-def revert_resources(directory, path=None, file_data=None):
+def revert_resources(directory, bucket, prefix, path=None, file_data=None):
     if file_data is not None:
-        print("222 Replacing in {}".format(path))
-        return file_data.replace(directory, RESOURCES_KEY)
+        print("Replacing in {}".format(path))
+        data = file_data.replace(directory, RESOURCES_KEY)
+        data = data.replace(bucket.name,BUCKET_KEY)
+        data = data.replace(prefix, PREFIX_KEY)
+        data = data.replace(RESOURCES_KEY, RESOURCES_KEY_OTHER)
+        data = data.replace(BUCKET_KEY, BUCKET_KEY_OTHER)
+        data = data.replace(PREFIX_KEY, PREFIX_KEY_OTHER)
+        return data
 
 
 def put_sls_resource(path, bucket, portfolio, product, version, sls_package, environment='core'):
